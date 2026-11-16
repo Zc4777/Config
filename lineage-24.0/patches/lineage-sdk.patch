@@ -1,0 +1,35 @@
+diff --git a/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java b/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java
+index 3897e666ab2b7e9f12692e6262b619095a248cb5..799f461c27e3c895d18e5e022d1ee95706167080 100644
+--- a/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java
++++ b/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java
+@@ -17,6 +17,7 @@ public class LineagePartsPreference extends RemotePreference {
+     private static final String TAG = "LineagePartsPreference";
+ 
+     private final PartInfo mPart;
++    private final boolean mDeviceAvailable;
+ 
+     private final Context mContext;
+ 
+@@ -24,6 +25,7 @@ public class LineagePartsPreference extends RemotePreference {
+                             int defStyle, int defStyleRes) {
+         super(context, attrs, defStyle, defStyleRes);
+         mContext = context;
++        mDeviceAvailable = isAvailable();
+         mPart = PartsList.get(context).getPartInfo(getKey());
+         if (mPart == null) {
+             throw new RuntimeException("Part not found: " + getKey());
+@@ -59,10 +61,10 @@ public class LineagePartsPreference extends RemotePreference {
+     }
+ 
+     private void updatePreference() {
+-        if (isAvailable() != mPart.isAvailable()) {
+-            setAvailable(mPart.isAvailable());
+-        }
+-        if (isAvailable()) {
++        final boolean available = mDeviceAvailable && mPart.isAvailable();
++        setAvailable(available);
++        setVisible(available);
++        if (available) {
+             setTitle(mPart.getTitle());
+             setSummary(mPart.getSummary());
+         }

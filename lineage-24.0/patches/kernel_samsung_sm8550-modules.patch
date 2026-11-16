@@ -1,0 +1,36 @@
+diff --git a/qcom/opensource/display-drivers/msm/dsi/dsi_display.c b/qcom/opensource/display-drivers/msm/dsi/dsi_display.c
+index 1a5726d0e32a145bc81c768fe7c52f7d19cd01a1..661b7aefa239c8fb846274a44920d626f5ea1853 100644
+--- a/qcom/opensource/display-drivers/msm/dsi/dsi_display.c
++++ b/qcom/opensource/display-drivers/msm/dsi/dsi_display.c
+@@ -5762,9 +5762,11 @@ static int dsi_display_force_update_dsi_clk(struct dsi_display *display)
+ 		atomic_set(&display->clkrate_change_pending, 0);
+ #if IS_ENABLED(CONFIG_DISPLAY_SAMSUNG)
+ #if IS_ENABLED(CONFIG_DEV_RIL_BRIDGE)
+-		ss_dyn_mipi_clk_tx_ffc(vdd);
+-		if (vdd->dyn_mipi_clk.osc_support)
+-			ss_dyn_mipi_clk_tx_osc(vdd);
++		if (vdd->dyn_mipi_clk.is_support) {
++			ss_dyn_mipi_clk_tx_ffc(vdd);
++			if (vdd->dyn_mipi_clk.osc_support)
++				ss_dyn_mipi_clk_tx_osc(vdd);
++		}
+ #endif
+ #endif
+ 	} else {
+diff --git a/qcom/opensource/display-drivers/msm/samsung/ss_wrapper_common.c b/qcom/opensource/display-drivers/msm/samsung/ss_wrapper_common.c
+index 67fc0ddbb348c5e3b5b4f27f47974edef0767f47..6914c5b779f9bd8e0b58b5c1f11d51479c7cad8b 100644
+--- a/qcom/opensource/display-drivers/msm/samsung/ss_wrapper_common.c
++++ b/qcom/opensource/display-drivers/msm/samsung/ss_wrapper_common.c
+@@ -1542,7 +1542,11 @@ int ss_wrapper_read_from_file(struct samsung_display_driver_data *vdd)
+ 		goto err;
+ 	}
+ 
+-	ret = request_firmware(&f_image, firmware_path, fw_dev);
++	/* The Tab S9 Ultra panel has a built-in copy of its configuration. */
++	if (!strcmp(vdd->panel_name, "GTS9U_ANA38407_AMSA46AS02"))
++		ret = request_firmware_direct(&f_image, firmware_path, fw_dev);
++	else
++		ret = request_firmware(&f_image, firmware_path, fw_dev);
+ 	if (ret < 0) {
+ 		LCD_INFO(vdd, "Skip panel data firmware Loading\n");
+ 		goto err;

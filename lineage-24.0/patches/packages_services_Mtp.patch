@@ -1,0 +1,29 @@
+diff --git a/res/values/config.xml b/res/values/config.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..ee732ea9e9dc0c59cb6630cef2675ddf18cf7b08
+--- /dev/null
++++ b/res/values/config.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<resources>
++    <!-- An empty value uses the Android product model for MTP. -->
++    <string name="config_mtpDeviceModel" translatable="false"></string>
++</resources>
+diff --git a/src/com/android/mtp/MtpService.java b/src/com/android/mtp/MtpService.java
+index 7301f4d70ab07af949a45d3601d28daa04406927..408de5832488bd5cca56e1d6aebc4daf9ea19aad 100644
+--- a/src/com/android/mtp/MtpService.java
++++ b/src/com/android/mtp/MtpService.java
+@@ -195,10 +195,11 @@ public class MtpService extends Service {
+                 fd = controlFd.getFileDescriptor();
+             }
+ 
++            final String model = getString(R.string.config_mtpDeviceModel);
+             final MtpServer server =
+                     new MtpServer(database, fd, mPtpMode,
+                             new OnServerTerminated(), Build.MANUFACTURER,
+-                            Build.MODEL, "1.0");
++                            model.isEmpty() ? Build.MODEL : model, "1.0");
+             database.setServer(server);
+             sServerHolder = new ServerHolder(server, database);
+ 

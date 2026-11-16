@@ -1,0 +1,22 @@
+diff --git a/cmd/soong_build/main.go b/cmd/soong_build/main.go
+index 335d3d8f2e5ec8cf7a7c051ba6acd302374cd677..cbe7c96e94cf5953257d66d5fc41b324a56268ea 100644
+--- a/cmd/soong_build/main.go
++++ b/cmd/soong_build/main.go
+@@ -22,6 +22,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"time"
+ 
+@@ -314,6 +315,9 @@ func parseAvailableEnv() map[string]string {
+ }
+ 
+ func main() {
++	// Local build-host tuning for this 39 GiB RAM machine.
++	debug.SetMemoryLimit(32 << 30)
++	debug.SetGCPercent(50)
+ 	flag.Parse()
+ 
+ 	if cmdlineArgs.Memprofile == "" {

@@ -1,0 +1,60 @@
+diff --git a/msdllib/src/com/google/android/msdl/domain/MSDLPlayer.kt b/msdllib/src/com/google/android/msdl/domain/MSDLPlayer.kt
+index c0401848ea32bdd9c207392c7872257b966280f5..073284ee87eedd4c706e7dfbc29f0a55450284c9 100644
+--- a/msdllib/src/com/google/android/msdl/domain/MSDLPlayer.kt
++++ b/msdllib/src/com/google/android/msdl/domain/MSDLPlayer.kt
+@@ -17,6 +17,7 @@
+ package com.google.android.msdl.domain
+ 
+ import android.os.Vibrator
++import android.os.VibrationEffect
+ import android.util.Log
+ import com.google.android.msdl.data.model.FeedbackLevel
+ import com.google.android.msdl.data.model.HapticComposition
+@@ -72,11 +73,15 @@ interface MSDLPlayer {
+          * @param[useHapticFeedbackForToken] A map that determines if a haptic fallback effect
+          *   should be used to play haptics for a given [MSDLToken]. If null, the map will be
+          *   created using the support information from the given vibrator.
++         * @param[fallbackEffects] Device-specific replacements for unsupported compositions.
++         *   Supported primitive compositions are unaffected.
+          */
++        @JvmOverloads
+         fun createPlayer(
+             vibrator: Vibrator?,
+             executor: Executor = Executors.newSingleThreadExecutor(),
+             useHapticFeedbackForToken: Map<MSDLToken, Boolean>? = null,
++            fallbackEffects: Map<MSDLToken, VibrationEffect> = emptyMap(),
+         ): MSDLPlayer {
+             // Return an empty player if no vibrator is available
+             if (vibrator == null) {
+@@ -96,7 +101,9 @@ interface MSDLPlayer {
+             val shouldUseFallbackForToken =
+                 useHapticFeedbackForToken ?: createHapticFallbackDecisionMap(vibrator, repository)
+ 
+-            return MSDLPlayerImpl(repository, vibrator, executor, shouldUseFallbackForToken)
++            return MSDLPlayerImpl(
++                repository, vibrator, executor, shouldUseFallbackForToken, fallbackEffects
++            )
+         }
+ 
+         private fun createHapticFallbackDecisionMap(
+diff --git a/msdllib/src/com/google/android/msdl/domain/MSDLPlayerImpl.kt b/msdllib/src/com/google/android/msdl/domain/MSDLPlayerImpl.kt
+index 606f634b76c8a0cb643e2dfb12054363cafc8d8d..9a48cfaf4fc1b35d77df4e297c9721c5f5268042 100644
+--- a/msdllib/src/com/google/android/msdl/domain/MSDLPlayerImpl.kt
++++ b/msdllib/src/com/google/android/msdl/domain/MSDLPlayerImpl.kt
+@@ -45,6 +45,7 @@ internal class MSDLPlayerImpl(
+     private val vibrator: Vibrator,
+     private val executor: Executor,
+     private val useHapticFallbackForToken: Map<MSDLToken, Boolean?>,
++    private val fallbackEffects: Map<MSDLToken, VibrationEffect> = emptyMap(),
+ ) : MSDLPlayer {
+ 
+     /** A logger to keep a history of playback events */
+@@ -76,7 +77,7 @@ internal class MSDLPlayerImpl(
+             val composition: HapticComposition? = hapticData?.get() as? HapticComposition
+             val effect =
+                 if (useHapticFallbackForToken[token] == true) {
+-                    composition?.fallbackEffect
++                    fallbackEffects[token] ?: composition?.fallbackEffect
+                 } else {
+                     when (properties) {
+                         is InteractionProperties.DynamicVibrationScale -> {

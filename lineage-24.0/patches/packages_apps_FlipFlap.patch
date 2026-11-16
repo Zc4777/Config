@@ -1,0 +1,143 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index f1419358967b87d8ef2317ff7171be8774bea0c7..44878e8b622c86ce03f9c98ff7cfdea3b44b1c62 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -6,6 +6,7 @@
+     android:sharedUserId="android.uid.system">
+ 
+     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
++    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+     <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
+     <uses-permission android:name="android.permission.CALL_PHONE" />
+@@ -24,6 +25,17 @@
+         android:supportsRtl="true"
+         android:theme="@style/Theme.SubSettingsBase.Expressive">
+ 
++        <receiver
++            android:name=".CoverSettingsReceiver"
++            android:directBootAware="true"
++            android:exported="false">
++            <intent-filter>
++                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
++                <action android:name="android.intent.action.BOOT_COMPLETED" />
++                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
++            </intent-filter>
++        </receiver>
++
+         <receiver
+             android:name=".EventReceiver"
+             android:exported="true">
+diff --git a/src/org/lineageos/flipflap/CoverSettingsReceiver.java b/src/org/lineageos/flipflap/CoverSettingsReceiver.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..37c8048e573ce7803749fa04f961bdaae100e163
+--- /dev/null
++++ b/src/org/lineageos/flipflap/CoverSettingsReceiver.java
+@@ -0,0 +1,20 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++package org.lineageos.flipflap;
++
++import android.content.BroadcastReceiver;
++import android.content.Context;
++import android.content.Intent;
++
++/** Restores the framework lid policy even when the lid event receiver is disabled. */
++public class CoverSettingsReceiver extends BroadcastReceiver {
++    @Override
++    public void onReceive(Context context, Intent intent) {
++        final String action = intent.getAction();
++        if (Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action)
++                || Intent.ACTION_BOOT_COMPLETED.equals(action)
++                || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
++            FlipFlapUtils.syncCoverEnabledState(context);
++        }
++    }
++}
+diff --git a/src/org/lineageos/flipflap/EventReceiver.java b/src/org/lineageos/flipflap/EventReceiver.java
+index ba985b6057ccfc333f8226990e85ea14370396fc..193d92b404474330eefc421b3ad0cd22ce8567bc 100644
+--- a/src/org/lineageos/flipflap/EventReceiver.java
++++ b/src/org/lineageos/flipflap/EventReceiver.java
+@@ -38,6 +38,10 @@ public class EventReceiver extends BroadcastReceiver {
+ 
+     @Override
+     public void onReceive(Context context, Intent intent) {
++        // Also reject already queued events after the receiver has been disabled.
++        if (!FlipFlapUtils.isCoverEnabled(context)) {
++            return;
++        }
+         if (lineageos.content.Intent.ACTION_LID_STATE_CHANGED.equals(intent.getAction())) {
+             PowerManager powerManager = context.getSystemService(PowerManager.class);
+             BatteryManager batMan = context.getSystemService(BatteryManager.class);
+diff --git a/src/org/lineageos/flipflap/FlipFlapSettingsFragment.java b/src/org/lineageos/flipflap/FlipFlapSettingsFragment.java
+index d3b3993c59600f44bafc6191c85cb20bc86928b4..e6247bb79cc00dc53bdc99903121eabbfd43d9c8 100644
+--- a/src/org/lineageos/flipflap/FlipFlapSettingsFragment.java
++++ b/src/org/lineageos/flipflap/FlipFlapSettingsFragment.java
+@@ -70,7 +70,8 @@ public class FlipFlapSettingsFragment extends SettingsBasePreferenceFragment
+             behaviourCategory.removePreference(touchSensitivityPref);
+         }
+ 
+-        switchBar.setChecked(isEventReceiverEnabled());
++        FlipFlapUtils.syncCoverEnabledState(getContext());
++        switchBar.setChecked(FlipFlapUtils.isCoverEnabled(getContext()));
+     }
+ 
+     @Override
+@@ -83,6 +84,7 @@ public class FlipFlapSettingsFragment extends SettingsBasePreferenceFragment
+             case KEY_ENABLE:
+                 setComponentEnabled(getActivity(), EventReceiver.class.getName(),
+                         (Boolean) newValue);
++                FlipFlapUtils.syncCoverEnabledState(getContext());
+                 return true;
+ 
+             default:
+@@ -106,12 +108,6 @@ public class FlipFlapSettingsFragment extends SettingsBasePreferenceFragment
+         setTimeoutSummary(list, FlipFlapUtils.getTimeout(getActivity(), key));
+     }
+ 
+-    private boolean isEventReceiverEnabled() {
+-        ComponentName cn = new ComponentName(getContext(), EventReceiver.class);
+-        int state = getContext().getPackageManager().getComponentEnabledSetting(cn);
+-        return state != PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+-    }
+-
+     private void setTimeoutSummary(Preference pref, int timeOut) {
+         pref.setSummary(timeOut < 0
+                 ? R.string.timeout_summary_never
+diff --git a/src/org/lineageos/flipflap/FlipFlapUtils.java b/src/org/lineageos/flipflap/FlipFlapUtils.java
+index 03bd9c67e7f07c4f11cce1cfa2920cb8a51f2d35..b599c7c809c6d766642961aa6d3cd5d5d05877da 100644
+--- a/src/org/lineageos/flipflap/FlipFlapUtils.java
++++ b/src/org/lineageos/flipflap/FlipFlapUtils.java
+@@ -21,6 +21,10 @@
+ package org.lineageos.flipflap;
+ 
+ import android.content.Context;
++import android.content.ComponentName;
++import android.content.Intent;
++import android.content.pm.PackageManager;
++import android.provider.Settings;
+ import android.content.SharedPreferences;
+ import android.preference.PreferenceManager;
+ 
+@@ -60,6 +64,21 @@ public class FlipFlapUtils {
+             COVER_STYLE_RECTANGULAR
+     };
+ 
++    public static boolean isCoverEnabled(Context context) {
++        final ComponentName receiver = new ComponentName(context, EventReceiver.class);
++        return context.getPackageManager().getComponentEnabledSetting(receiver)
++                != PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
++    }
++
++    public static void syncCoverEnabledState(Context context) {
++        final boolean enabled = isCoverEnabled(context);
++        Settings.Global.putInt(context.getContentResolver(),
++                Settings.Global.LID_SWITCH_ENABLED, enabled ? 1 : 0);
++        if (!enabled) {
++            context.stopService(new Intent(context, FlipFlapService.class));
++        }
++    }
++
+     public static int getCoverStyle(Context context) {
+         return context.getResources().getInteger(R.integer.config_deviceCoverType);
+     }

@@ -1,0 +1,156 @@
+{
+  "branch": "lineage-24.0",
+  "target": "lineage_gts9uwifi-cp2a-eng",
+  "sources": [
+    {
+      "path": "device/samsung/gts9uwifi",
+      "base": "1951735dbd014cf4f788bc2b4f388696022f69af",
+      "commit": "110fefc4b6b1acecf314aa52ef688ac8af5f0be2",
+      "repository": "Zc4777/android_device_samsung_gts9uwifi",
+      "patch": "patches/device_samsung_gts9uwifi.patch",
+      "sha256": "aec3a841f7e7d70ca7f28da39ada164c5bbc1f8ab6bf30c1ded2c28cf581c3bb",
+      "apply_after_sync": false
+    },
+    {
+      "path": "device/samsung/sm8550-common",
+      "base": "0a77ba7d7ea145852fc262a75e97185ee8ce63d3",
+      "commit": "c2e7d14f98519c1fb1b1d72057c3749845167428",
+      "repository": "Zc4777/android_device_samsung_sm8550-common",
+      "patch": "patches/device_samsung_sm8550-common.patch",
+      "sha256": "385bbf46390232c0e023a45374b8ce8e9970d573deae90256e195c8edf1aa5d0",
+      "apply_after_sync": false
+    },
+    {
+      "path": "frameworks/base",
+      "base": "22de88b7b8eb979c816669c7963dee66ae4953cd",
+      "commit": "2abc24cd09be84e3220b6b06ed470a9c1aa48c44",
+      "repository": "Zc4777/android_frameworks_base",
+      "patch": "patches/frameworks_base.patch",
+      "sha256": "11c7703718dcb7edf216a1419652b0e082a63ac69791bba8baf746cfd1928093",
+      "apply_after_sync": false
+    },
+    {
+      "path": "frameworks/libs/systemui",
+      "base": "0e181d3d5dd8456ee158d9ac8725d9cd59fecd28",
+      "commit": "38a18fb84f22cc742b6414e64e8f5a3cae0b9956",
+      "patch": "patches/frameworks_libs_systemui.patch",
+      "sha256": "d9758d0dedb26d417344e95197c28f2fae741824749375d15ed281262c8c46eb",
+      "apply_after_sync": true
+    },
+    {
+      "path": "frameworks/native",
+      "base": "a96adf2c6e62dbb22299cd83bbb9ea4bc569e985",
+      "commit": "2c38868899c8e2cc61b517074eaf0cddd856f897",
+      "patch": "patches/frameworks_native.patch",
+      "sha256": "7bd1f7c4f1210388c02549fe5e212a2b75bb5b8f9c4e343cd9927ded24055ab2",
+      "apply_after_sync": true
+    },
+    {
+      "path": "hardware/qcom-caf/sm8550/display",
+      "base": "49c62a596a6cce794d5965bf03d5f60c41714537",
+      "commit": "8fcf0f75d8f5e4495e1b45485df32f57d7271991",
+      "patch": "patches/hardware_qcom-caf_sm8550_display.patch",
+      "sha256": "20daca1dbce72d29437138b86256a16e9a707ed2da193bf3992aa61b673f37c3",
+      "apply_after_sync": true
+    },
+    {
+      "path": "hardware/dolby",
+      "base": "d24245e420b44d360fb6e45d959cb255dc306f85",
+      "commit": "f20b2d3cb0c33c560c7158b9d38f358c232ec67e",
+      "repository": "Zc4777/android_hardware_dolby",
+      "patch": "patches/hardware_dolby.patch",
+      "sha256": "831eaa7d161b79a11118ac36ca5cae70720f4e9658b35570565ea4bfc189acac",
+      "apply_after_sync": false
+    },
+    {
+      "path": "lineage-sdk",
+      "base": "33dae0ab26b7efb7eab76bf60b347d2f4df1e5a6",
+      "commit": "fdd095229ed2bc479697cfed08decd85e0fc22d8",
+      "patch": "patches/lineage-sdk.patch",
+      "sha256": "496277485613b2da7be1d185bb34d3c49fd95ca634c966652486f0dc74b14689",
+      "apply_after_sync": true
+    },
+    {
+      "path": "packages/apps/FlipFlap",
+      "base": "4866b33735fd4ad7033079c59d1c7f8d6d02fd74",
+      "commit": "f1d5807f7b509b8fc10e6e41c945254ad98cc935",
+      "patch": "patches/packages_apps_FlipFlap.patch",
+      "sha256": "969e3b1d50905ab6f6de05af31361d88c53f8d0dbb869422fb939affc290b144",
+      "apply_after_sync": true
+    },
+    {
+      "path": "packages/apps/Settings",
+      "base": "31b1a9f1cab9638bc6af9f4e6412fbf3b3a7947a",
+      "commit": "74ff9a6ae83da2b0790e1b3f13888ac0591c6b20",
+      "patch": "patches/packages_apps_Settings.patch",
+      "sha256": "928cc13e3eaf19d4875736cfe148b516220a801454278775f9235d38a0008280",
+      "apply_after_sync": true
+    },
+    {
+      "path": "packages/services/Mtp",
+      "base": "45cd4c9d78a5eabb5a40c7d4e665ff6e534e4ca5",
+      "commit": "7a1300aa95c3cd0d51192521bb186e0e20d8fedb",
+      "patch": "patches/packages_services_Mtp.patch",
+      "sha256": "8d900d16f61b864ee3eb8c654eccf5a20c39681aed8f3ec9c11cf42375ff0f21",
+      "apply_after_sync": true
+    },
+    {
+      "path": "vendor/lineage",
+      "base": "5a1814d916321aecb72d60d13b5e52bc719251bd",
+      "commit": "8b4fdb994cf20ef8ada0d7985c948e9ee542245b",
+      "patch": "patches/vendor_lineage.patch",
+      "sha256": "a362a1a4297fe387c88e239e715e4b76c095ea61676f31c7b912d4f3e25478ff",
+      "apply_after_sync": true
+    },
+    {
+      "path": "build/make",
+      "base": "90d006387398ae6899145e6531a304500cfa0f70",
+      "commit": "367d298e1d1adc5605832ef7e340ce088073c319",
+      "patch": "patches/build_make.patch",
+      "sha256": "a7c9d1cb4fbbf757a350204d55ea57e8bc0d5049c969e039655e6c2fabb91b3f",
+      "apply_after_sync": true
+    },
+    {
+      "path": "build/soong",
+      "base": "a528a88bd553d2a449ad9338a3e944b89a164971",
+      "commit": "4275431451f6c296bce9e536a2dcda3fb77e89ff",
+      "patch": "patches/build_soong.patch",
+      "sha256": "b837b0dcc08508c4022db9c9cf6464655e2f21a217a0dcfe4bd41438a01f7ccb",
+      "apply_after_sync": true
+    },
+    {
+      "path": "kernel/samsung/sm8550",
+      "base": "bfdd5eb429f20e92416930d6d10f06c624c008d6",
+      "commit": "1c262f06cab007aef3f3addffdba90aaa3c5a6ab",
+      "repository": "Zc4777/android_kernel_samsung_sm8550",
+      "patch": "patches/kernel_samsung_sm8550.patch",
+      "sha256": "f46378116c5116c16b7a623ee4eae1e890b24e75b0cb2f31aeedf91ec18a374d",
+      "apply_after_sync": false
+    },
+    {
+      "path": "kernel/samsung/sm8550-devicetrees",
+      "base": "41240b57b3751868d012af13f6264debcf757894",
+      "commit": "738ed6250d2adad76a743b4bfb7855153287e17b",
+      "repository": "Zc4777/android_kernel_samsung_sm8550-devicetrees"
+    },
+    {
+      "path": "kernel/samsung/sm8550-modules",
+      "base": "19531c3a0139f499d7cd649e361ad7673b9bdf8c",
+      "commit": "42b02a98ea0e0298fa0b3da96af042241fa9165a",
+      "repository": "Zc4777/android_kernel_samsung_sm8550-modules",
+      "patch": "patches/kernel_samsung_sm8550-modules.patch",
+      "sha256": "9da64455921c4ed36427f1c129cfe3e042722e33a5473eaf805397644504e0d3",
+      "apply_after_sync": false
+    },
+    {
+      "path": "hardware/samsung",
+      "repository": "Zc4777/android_hardware_samsung",
+      "commit": "71380e52efe54e4f539921857e877fb0928ebb71"
+    },
+    {
+      "path": "vendor/samsung",
+      "repository": "Zc4777/proprietary_vendor_samsung",
+      "commit": "8d96722b6c6e1ebf3604b6820b8679d988285c68"
+    }
+  ]
+}

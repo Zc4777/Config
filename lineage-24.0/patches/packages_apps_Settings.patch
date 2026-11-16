@@ -1,0 +1,794 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index e45bc1b23bf66abe198c3c9aac4d468cc21cc028..1d549e8d66d1188ca8c9fb141a1e8ee901662346 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -3118,18 +3118,18 @@
+ 
+         <activity android:name=".biometrics.face.FaceEnrollParentalConsent"
+                   android:exported="false"
+-                  android:screenOrientation="portrait"/>
++                  android:screenOrientation="@integer/config_face_enroll_capture_orientation"/>
+ 
+         <activity android:name=".biometrics.face.FaceEnrollIntroduction"
+                   android:exported="false"
+                   android:theme="@style/GlifV4Theme.DayNight"
+-                  android:screenOrientation="nosensor">
++                  android:screenOrientation="@integer/config_face_enroll_intro_orientation">
+         </activity>
+ 
+         <activity android:name=".biometrics.face.FaceEnroll"
+                   android:exported="true"
+                   android:theme="@style/GlifV4Theme.DayNight"
+-                  android:screenOrientation="nosensor">
++                  android:screenOrientation="@integer/config_face_enroll_intro_orientation">
+             <intent-filter>
+                 <action android:name="android.settings.FACE_ENROLL"/>
+                 <category android:name="android.intent.category.DEFAULT"/>
+@@ -3138,30 +3138,30 @@
+ 
+         <activity android:name=".biometrics.face.FaceEnrollIntroductionInternal"
+                   android:exported="false"
+-                  android:screenOrientation="nosensor"
++                  android:screenOrientation="@integer/config_face_enroll_intro_orientation"
+                   android:theme="@style/GlifV4Theme.DayNight"
+                   android:taskAffinity="com.android.settings.root" />
+ 
+         <activity android:name=".biometrics.face.FaceEnrollEducation"
+             android:exported="false"
+             android:theme="@style/GlifV4Theme.DayNight"
+-            android:screenOrientation="nosensor"/>
++            android:screenOrientation="@integer/config_face_enroll_intro_orientation"/>
+ 
+         <activity android:name=".biometrics.face.FaceEnrollEnrolling"
+             android:exported="false"
+             android:theme="@style/GlifV4Theme.DayNight"
+-            android:screenOrientation="portrait"/>
++            android:screenOrientation="@integer/config_face_enroll_capture_orientation"/>
+ 
+         <activity android:name=".biometrics.face.FaceEnrollFinish"
+             android:exported="false"
+             android:theme="@style/GlifV4Theme.DayNight"
+-            android:screenOrientation="portrait"/>
++            android:screenOrientation="@integer/config_face_enroll_capture_orientation"/>
+ 
+         <activity android:name=".biometrics.face.FaceEnrollFoldPage"
+             android:exported="false"
+             android:theme="@style/GlifV4Theme.DayNight"
+             android:configChanges="density|keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
+-            android:screenOrientation="nosensor"/>
++            android:screenOrientation="@integer/config_face_enroll_intro_orientation"/>
+ 
+         <activity android:name=".biometrics.BiometricHandoffActivity"
+                   android:exported="false"/>
+diff --git a/res/layout/face_enroll_enrolling.xml b/res/layout/face_enroll_enrolling.xml
+index f7957d86a2f84de112863c181b7e0b3ede5dac92..31ae7053cc894a37dcbd2e2ab75bce97ad9039e9 100644
+--- a/res/layout/face_enroll_enrolling.xml
++++ b/res/layout/face_enroll_enrolling.xml
+@@ -51,7 +51,7 @@
+ 
+             <com.android.settings.biometrics.face.FaceSquareFrameLayout
+                 android:layout_width="match_parent"
+-                android:layout_height="match_parent"
++                android:layout_height="0dp"
+                 android:layout_weight="1">
+ 
+                 <com.android.settings.biometrics.face.FaceSquareTextureView
+diff --git a/res/values-zh-rCN/face_enroll_pose.xml b/res/values-zh-rCN/face_enroll_pose.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..e3c38a502771d27c78a6dbcfb3bff98f774bd3a7
+--- /dev/null
++++ b/res/values-zh-rCN/face_enroll_pose.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="face_enroll_pose_look_ahead">请正视前方，让面孔保持在圆圈内</string>
++    <string name="face_enroll_pose_look_up">请缓缓抬头，稍微看向上方</string>
++    <string name="face_enroll_remove_glasses_title">请摘下眼镜</string>
++    <string name="face_enroll_remove_glasses_message">摘下眼镜后，点按“继续”完成剩余录入。若未戴眼镜，请直接点按“继续”。</string>
++    <string name="face_enroll_glasses_continue">继续</string>
++</resources>
+diff --git a/res/values-zh-rTW/face_enroll_pose.xml b/res/values-zh-rTW/face_enroll_pose.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..1955865a371f368b9430b7c551f238565b0360ea
+--- /dev/null
++++ b/res/values-zh-rTW/face_enroll_pose.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="face_enroll_pose_look_ahead">請直視前方，讓臉部保持在圓圈內</string>
++    <string name="face_enroll_pose_look_up">請緩緩抬頭，稍微看向上方</string>
++    <string name="face_enroll_remove_glasses_title">請摘下眼鏡</string>
++    <string name="face_enroll_remove_glasses_message">摘下眼鏡後，輕觸「繼續」完成剩餘註冊。若未戴眼鏡，請直接輕觸「繼續」。</string>
++    <string name="face_enroll_glasses_continue">繼續</string>
++</resources>
+diff --git a/res/values/face_enroll_pose.xml b/res/values/face_enroll_pose.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..57e856f0671ec75142583c173bf92f6de71e00ce
+--- /dev/null
++++ b/res/values/face_enroll_pose.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <bool name="config_face_enroll_samsung_pose_guidance">false</bool>
++    <!-- Instruction during the centered phase of Samsung face enrollment. -->
++    <string name="face_enroll_pose_look_ahead">Look straight ahead and keep your face in the circle</string>
++    <!-- Instruction when the HAL requests the upward pose. -->
++    <string name="face_enroll_pose_look_up">Slowly raise your chin and look slightly upward</string>
++    <!-- Samsung pauses enrollment for a second pass without glasses. -->
++    <string name="face_enroll_remove_glasses_title">Remove your glasses</string>
++    <string name="face_enroll_remove_glasses_message">Remove your glasses, then tap Continue to finish registering your face. If you are not wearing glasses, tap Continue.</string>
++    <string name="face_enroll_glasses_continue">Continue</string>
++</resources>
+diff --git a/res/values/lineage_config.xml b/res/values/lineage_config.xml
+index c6aaf2d2556755271a080e008d2ab98dd51bc168..2c28d8a26f47e8f6d23aec5391af11aceba7d476 100644
+--- a/res/values/lineage_config.xml
++++ b/res/values/lineage_config.xml
+@@ -38,9 +38,19 @@
+     <!-- Whether to show min refresh rate in display settings -->
+     <bool name="config_show_min_refresh_rate_switch">false</bool>
+ 
+-    <!-- Whether Settings should open a separate camera preview during face enrollment -->
++    <!-- Whether the face HAL owns the enrollment camera and renders the preview. -->
+     <bool name="config_face_enroll_hal_owns_camera">false</bool>
+ 
++    <!-- Use a TextureView for a HAL-rendered 4:3 preview. -->
++    <bool name="config_face_enroll_hal_preview_uses_texture_view">false</bool>
++
++    <!-- ActivityInfo.SCREEN_ORIENTATION_NOSENSOR and SCREEN_ORIENTATION_PORTRAIT. -->
++    <integer name="config_face_enroll_intro_orientation">5</integer>
++    <integer name="config_face_enroll_capture_orientation">1</integer>
++
++    <!-- Rotate the face preview with the display. -->
++    <bool name="config_face_enroll_follow_user_rotation">false</bool>
++
+     <!-- HAL-owned face preview size, must match a supported camera size -->
+     <integer name="face_preview_width">1080</integer>
+     <integer name="face_preview_height">1080</integer>
+diff --git a/src/com/android/settings/biometrics/face/FaceEnrollEnrolling.java b/src/com/android/settings/biometrics/face/FaceEnrollEnrolling.java
+index 50a2a89a9957e5266c0a8d0f32dd8a2350925439..7fcf68b976cb85b15b76115fa6bf36fd69a0c93d 100644
+--- a/src/com/android/settings/biometrics/face/FaceEnrollEnrolling.java
++++ b/src/com/android/settings/biometrics/face/FaceEnrollEnrolling.java
+@@ -57,6 +57,9 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+     private Interpolator mLinearOutSlowInInterpolator;
+     private FaceEnrollPreviewFragment mPreviewFragment;
+     private boolean mCompletionStarted;
++    private boolean mSamsungPoseGuidance;
++    private boolean mGlassesEnrollmentPaused;
++    private CharSequence mPosePrompt;
+     private boolean mPromptVisible;
+     private final Handler mPromptHandler = new Handler();
+ 
+@@ -102,7 +105,16 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+                     .show(getSupportFragmentManager(), BiometricsSplitScreenDialog.class.getName());
+         }
+         setContentView(R.layout.face_enroll_enrolling);
+-        setHeaderText(R.string.security_settings_face_enroll_repeat_title);
++        mSamsungPoseGuidance = getResources().getBoolean(
++                R.bool.config_face_enroll_samsung_pose_guidance);
++        if (mSamsungPoseGuidance) {
++            mPosePrompt = getText(R.string.face_enroll_pose_look_ahead);
++            getLayout().getHeaderTextView().setAccessibilityLiveRegion(
++                    View.ACCESSIBILITY_LIVE_REGION_POLITE);
++            setHeaderText(mPosePrompt);
++        } else {
++            setHeaderText(R.string.security_settings_face_enroll_repeat_title);
++        }
+         mErrorText = findViewById(R.id.error_text);
+         mLinearOutSlowInInterpolator = AnimationUtils.loadInterpolator(
+                 this, android.R.interpolator.linear_out_slow_in);
+@@ -117,6 +129,16 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+                         .build()
+         );
+ 
++        if (mSamsungPoseGuidance) {
++            mFooterBarMixin.setPrimaryButton(new FooterButton.Builder(this)
++                    .setText(R.string.face_enroll_glasses_continue)
++                    .setListener(view -> resumeAfterGlassesRemoval())
++                    .setButtonType(FooterButton.ButtonType.NEXT)
++                    .setTheme(com.google.android.setupdesign.R.style.SudGlifButton_Primary)
++                    .build());
++            mFooterBarMixin.getPrimaryButton().setVisibility(View.GONE);
++        }
++
+         if (!getIntent().getBooleanExtra(BiometricEnrollBase.EXTRA_KEY_REQUIRE_DIVERSITY, true)) {
+             mDisabledFeatures.add(FEATURE_REQUIRE_REQUIRE_DIVERSITY);
+         }
+@@ -127,6 +149,16 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+         startEnrollment();
+     }
+ 
++    @Override
++    protected void onResume() {
++        super.onResume();
++        if (mSamsungPoseGuidance && mSidecar instanceof FaceEnrollSidecar
++                && ((FaceEnrollSidecar) mSidecar).isWaitingForGlassesRemoval()) {
++            // A retained sidecar can be paused without further frames to replay its prompt.
++            onEnrollmentHelp(SamsungFaceEnrollGuidance.GLASSES_HELP_CODE, null);
++        }
++    }
++
+     @Override
+     protected void onStop() {
+         if (!isChangingConfigurations()) {
+@@ -169,6 +201,7 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+             getSupportFragmentManager().beginTransaction().add(mPreviewFragment, TAG_FACE_PREVIEW)
+                     .commitAllowingStateLoss();
+         }
++        mPreviewFragment.bindViews(this);
+         mPreviewFragment.setListener(mListener);
+         if (getResources().getBoolean(R.bool.config_face_enroll_hal_owns_camera)) {
+             // The face HAL renders into the preview surface, wait until it is available.
+@@ -206,6 +239,29 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+ 
+     @Override
+     public void onEnrollmentHelp(int helpMsgId, CharSequence helpString) {
++        if (mCompletionStarted) return;
++        if (mSamsungPoseGuidance && SamsungFaceEnrollGuidance.isGlassesHelpCode(helpMsgId)) {
++            if (mGlassesEnrollmentPaused) return;
++            mGlassesEnrollmentPaused = true;
++            mPosePrompt = getText(R.string.face_enroll_remove_glasses_title);
++            setHeaderText(mPosePrompt);
++            mPromptHandler.removeCallbacksAndMessages(null);
++            mErrorText.animate().cancel();
++            mPromptVisible = true;
++            showPrompt(getText(R.string.face_enroll_remove_glasses_message));
++            mFooterBarMixin.getPrimaryButton().setVisibility(View.VISIBLE);
++            return;
++        }
++        if (mGlassesEnrollmentPaused) return;
++        if (mSamsungPoseGuidance && SamsungFaceEnrollGuidance.isPoseHelpCode(helpMsgId)
++                && !TextUtils.isEmpty(helpString)) {
++            // Pose instructions stay visible and change immediately with the HAL stage.
++            if (!TextUtils.equals(mPosePrompt, helpString)) {
++                mPosePrompt = helpString;
++                setHeaderText(helpString);
++            }
++            return;
++        }
+         if (!TextUtils.isEmpty(helpString)) {
+             showError(helpString);
+         }
+@@ -245,6 +301,19 @@ public class FaceEnrollEnrolling extends BiometricsEnrollEnrolling {
+         }
+     }
+ 
++    private void resumeAfterGlassesRemoval() {
++        if (!mGlassesEnrollmentPaused || !(mSidecar instanceof FaceEnrollSidecar)) return;
++        mGlassesEnrollmentPaused = false;
++        mFooterBarMixin.getPrimaryButton().setVisibility(View.GONE);
++        mPromptHandler.removeCallbacksAndMessages(null);
++        mErrorText.animate().cancel();
++        mErrorText.setVisibility(View.INVISIBLE);
++        mPromptVisible = false;
++        mPosePrompt = getText(R.string.face_enroll_pose_look_ahead);
++        setHeaderText(mPosePrompt);
++        ((FaceEnrollSidecar) mSidecar).resumeEnrollment();
++    }
++
+     private void showErrorDialog(CharSequence msg, int msgId) {
+         BiometricErrorDialog dialog = FaceErrorDialog.newInstance(msg, msgId);
+         dialog.show(getSupportFragmentManager(), FaceErrorDialog.class.getName());
+diff --git a/src/com/android/settings/biometrics/face/FaceEnrollPreviewFragment.java b/src/com/android/settings/biometrics/face/FaceEnrollPreviewFragment.java
+index d2106055a68afa7838abf60b842760ddf57c981c..05067b5070e829c1e1a2da387568683edaf39cf0 100644
+--- a/src/com/android/settings/biometrics/face/FaceEnrollPreviewFragment.java
++++ b/src/com/android/settings/biometrics/face/FaceEnrollPreviewFragment.java
+@@ -17,8 +17,8 @@
+ package com.android.settings.biometrics.face;
+ 
+ import android.app.settings.SettingsEnums;
+-import android.content.Context;
+ import android.content.pm.ActivityInfo;
++import android.content.res.Configuration;
+ import android.graphics.Matrix;
+ import android.graphics.SurfaceTexture;
+ import android.hardware.camera2.CameraAccessException;
+@@ -28,12 +28,13 @@ import android.hardware.camera2.CameraDevice;
+ import android.hardware.camera2.CameraManager;
+ import android.hardware.camera2.CaptureRequest;
+ import android.hardware.camera2.params.StreamConfigurationMap;
+-import android.os.Bundle;
++import android.hardware.display.DisplayManager;
+ import android.os.Handler;
+ import android.os.Looper;
+ import android.util.Log;
+ import android.util.Size;
+ import android.util.TypedValue;
++import android.view.Display;
+ import android.view.Surface;
+ import android.view.SurfaceHolder;
+ import android.view.SurfaceView;
+@@ -62,6 +63,7 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+ 
+     private Handler mHandler = new Handler(Looper.getMainLooper());
+     private CameraManager mCameraManager;
++    private DisplayManager mDisplayManager;
+     private String mCameraId;
+     private CameraDevice mCameraDevice;
+     private CaptureRequest.Builder mPreviewRequestBuilder;
+@@ -70,6 +72,7 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+     private Size mPreviewSize;
+     private ParticleCollection.Listener mListener;
+     private boolean mHalOwnsCamera;
++    private boolean mHalUsesTextureView;
+     private Surface mPreviewSurface;
+     private SurfaceView mSurfaceView;
+     private Runnable mSurfaceReadyListener;
+@@ -107,24 +110,53 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+         }
+     };
+ 
++    private final DisplayManager.DisplayListener mDisplayListener =
++            new DisplayManager.DisplayListener() {
++        @Override
++        public void onDisplayAdded(int displayId) {}
++
++        @Override
++        public void onDisplayRemoved(int displayId) {}
++
++        @Override
++        public void onDisplayChanged(int displayId) {
++            final Display display = mTextureView.getDisplay();
++            if (display != null && display.getDisplayId() == displayId) {
++                updatePreviewRotation();
++            }
++        }
++    };
++
+     private final TextureView.SurfaceTextureListener mSurfaceTextureListener =
+             new TextureView.SurfaceTextureListener() {
+ 
+         @Override
+         public void onSurfaceTextureAvailable(
+                 SurfaceTexture surfaceTexture, int width, int height) {
+-            openCamera(width, height);
++            if (mHalUsesTextureView) {
++                configureHalTextureTransform(width, height);
++                if (mPreviewSurface == null) {
++                    mPreviewSurface = new Surface(surfaceTexture);
++                }
++                notifySurfaceReady();
++            } else {
++                openCamera(width, height);
++            }
+         }
+ 
+         @Override
+         public void onSurfaceTextureSizeChanged(
+                 SurfaceTexture surfaceTexture, int width, int height) {
+-            // Shouldn't be called, but do this for completeness.
+-            configureTransform(width, height);
++            if (mHalUsesTextureView) {
++                configureHalTextureTransform(width, height);
++            } else {
++                configureTransform(width, height);
++            }
+         }
+ 
+         @Override
+         public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
++            releaseHalTextureSurface();
+             return true;
+         }
+ 
+@@ -139,10 +171,14 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+ 
+         @Override
+         public void onOpened(CameraDevice cameraDevice) {
++            SurfaceTexture texture = mTextureView.getSurfaceTexture();
++            if (!isResumed() || texture == null) {
++                cameraDevice.close();
++                return;
++            }
+             mCameraDevice = cameraDevice;
+             try {
+                 // Configure the size of default buffer
+-                SurfaceTexture texture = mTextureView.getSurfaceTexture();
+                 texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+ 
+                 // This is the output Surface we need to start preview
+@@ -159,8 +195,8 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+ 
+                         @Override
+                         public void onConfigured(CameraCaptureSession cameraCaptureSession) {
+-                            // The camera is already closed
+-                            if (null == mCameraDevice) {
++                            if (mCameraDevice != cameraDevice) {
++                                cameraCaptureSession.close();
+                                 return;
+                             }
+                             // When the session is ready, we start displaying the preview.
+@@ -207,18 +243,26 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+         return SettingsEnums.FACE_ENROLL_PREVIEW;
+     }
+ 
+-    @Override
+-    public void onCreate(Bundle savedInstanceState) {
+-        super.onCreate(savedInstanceState);
+-        mHalOwnsCamera = getResources().getBoolean(R.bool.config_face_enroll_hal_owns_camera);
+-        mTextureView = getActivity().findViewById(R.id.texture_view);
+-        mSurfaceView = getActivity().findViewById(R.id.surface_view);
+-        mProgressView = getActivity().findViewById(R.id.progress_view);
++    void bindViews(FaceEnrollEnrolling activity) {
++        if (mTextureView != null) {
++            return;
++        }
++
++        // Fragment restoration can run before the activity has inflated its layout.
++        mHalOwnsCamera = activity.getResources().getBoolean(R.bool.config_face_enroll_hal_owns_camera);
++        mTextureView = activity.requireViewById(R.id.texture_view);
++        mSurfaceView = activity.requireViewById(R.id.surface_view);
++        mProgressView = activity.requireViewById(R.id.progress_view);
+ 
+         if (mHalOwnsCamera) {
+             // The face HAL keeps rendering into the initial preview surface, which is gone once
+             // the activity is recreated. Unlike portrait, locked is respected on large screens.
+-            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
++            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
++            mHalUsesTextureView = activity.getResources().getBoolean(
++                    R.bool.config_face_enroll_hal_preview_uses_texture_view);
++            if (mHalUsesTextureView) {
++                return;
++            }
+ 
+             // The HAL renders into a SurfaceView buffer.
+             mTextureView.setVisibility(View.GONE);
+@@ -230,17 +274,20 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+ 
+             // Pin the surface to a size the HAL supports.
+             mSurfaceView.getHolder().setFixedSize(
+-                    getResources().getInteger(R.integer.face_preview_width),
+-                    getResources().getInteger(R.integer.face_preview_height));
++                    activity.getResources().getInteger(R.integer.face_preview_width),
++                    activity.getResources().getInteger(R.integer.face_preview_height));
+ 
+             return;
+         }
+ 
+-        mCameraManager = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
++        mCameraManager = activity.getSystemService(CameraManager.class);
++        if (activity.getResources().getBoolean(R.bool.config_face_enroll_follow_user_rotation)) {
++            mDisplayManager = activity.getSystemService(DisplayManager.class);
++        }
+     }
+ 
+     public void revealSurface() {
+-        if (!mHalOwnsCamera || mSurfaceView == null || mPreviewRevealed) {
++        if (!mHalOwnsCamera || mHalUsesTextureView || mSurfaceView == null || mPreviewRevealed) {
+             return;
+         }
+         mPreviewRevealed = true;
+@@ -250,8 +297,11 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+     @Override
+     public void onResume() {
+         super.onResume();
++        if (mTextureView == null) {
++            return;
++        }
+ 
+-        if (mHalOwnsCamera) {
++        if (mHalOwnsCamera && !mHalUsesTextureView) {
+             // The face HAL opens the camera itself and renders into this SurfaceView.
+             final SurfaceHolder holder = mSurfaceView.getHolder();
+             holder.addCallback(mSurfaceHolderCallback);
+@@ -262,28 +312,56 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+             return;
+         }
+ 
++        if (mDisplayManager != null) {
++            mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
++            updatePreviewRotation();
++        }
++
+         // When the screen is turned off and turned back on, the SurfaceTexture is already
+         // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+         // a camera and start preview from here (otherwise, we wait until the surface is ready in
+         // the SurfaceTextureListener).
++        mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+         if (mTextureView.isAvailable()) {
+-            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+-        } else {
+-            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
++            mSurfaceTextureListener.onSurfaceTextureAvailable(mTextureView.getSurfaceTexture(),
++                    mTextureView.getWidth(), mTextureView.getHeight());
+         }
+     }
+ 
+     @Override
+     public void onPause() {
+         super.onPause();
++        if (mTextureView == null) {
++            return;
++        }
++
+         if (mHalOwnsCamera) {
+-            mSurfaceView.getHolder().removeCallback(mSurfaceHolderCallback);
+-            mPreviewSurface = null;
++            if (!mHalUsesTextureView) {
++                mSurfaceView.getHolder().removeCallback(mSurfaceHolderCallback);
++                mPreviewSurface = null;
++            }
+         } else {
++            if (mDisplayManager != null) {
++                mDisplayManager.unregisterDisplayListener(mDisplayListener);
++            }
++            mTextureView.setSurfaceTextureListener(null);
+             closeCamera();
+         }
+     }
+ 
++    @Override
++    public void onDestroy() {
++        releaseHalTextureSurface();
++        super.onDestroy();
++    }
++
++    private void releaseHalTextureSurface() {
++        if (mHalUsesTextureView && mPreviewSurface != null) {
++            mPreviewSurface.release();
++            mPreviewSurface = null;
++        }
++    }
++
+     @Override
+     public void onEnrollmentError(int errMsgId, CharSequence errString) {
+         mProgressView.setErrorState();
+@@ -414,6 +492,44 @@ public class FaceEnrollPreviewFragment extends InstrumentedPreferenceFragment
+         transform.setScale(scaleX * scale.getFloat(), scaleY * scale.getFloat());
+         transform.postTranslate(tx.getFloat(), ty.getFloat());
+         mTextureView.setTransform(transform);
++        updatePreviewRotation();
++    }
++
++    private void configureHalTextureTransform(int width, int height) {
++        if (width <= 0 || height <= 0) {
++            return;
++        }
++        final Display display = mTextureView.getDisplay();
++        final int displayRotation = display == null ? Surface.ROTATION_0 : display.getRotation();
++        final int sensorOrientation = getResources().getInteger(
++                com.android.internal.R.integer.config_faceAuthVendorSensorOrientation);
++        final int bufferRotation = sensorOrientation < 0 ? 270
++                : (sensorOrientation + displayRotation * 90) % 360;
++        // The Samsung HAL applies the same angle to preview and recognition.
++        // Crop according to its rotated buffer dimensions; an extra view rotation
++        // would rotate the preview twice after the HAL has been synchronized.
++        final boolean swapDimensions = bufferRotation == 90 || bufferRotation == 270;
++        final float cameraWidth = getResources().getInteger(R.integer.face_preview_width);
++        final float cameraHeight = getResources().getInteger(R.integer.face_preview_height);
++        final float bufferWidth = swapDimensions ? cameraHeight : cameraWidth;
++        final float bufferHeight = swapDimensions ? cameraWidth : cameraHeight;
++        final float scale = Math.max(width / bufferWidth, height / bufferHeight);
++        final Matrix transform = new Matrix();
++        transform.setScale(bufferWidth * scale / width, bufferHeight * scale / height,
++                width / 2f, height / 2f);
++        mTextureView.setTransform(transform);
++    }
++
++    private void updatePreviewRotation() {
++        if (mDisplayManager == null) {
++            return;
++        }
++        final Display display = mTextureView.getDisplay();
++        if (display != null) {
++            // The texture already applies the sensor transform. Rotate the square preview view
++            // about its center to account for the current display rotation.
++            mTextureView.setRotation(-90f * display.getRotation());
++        }
+     }
+ 
+     private void closeCamera() {
+diff --git a/src/com/android/settings/biometrics/face/FaceEnrollSidecar.java b/src/com/android/settings/biometrics/face/FaceEnrollSidecar.java
+index 34590c197205967936f03a2bbbf3ac4ea466cf6c..753f4045f37c48dcf118a1e2b960fe0ff90a779f 100644
+--- a/src/com/android/settings/biometrics/face/FaceEnrollSidecar.java
++++ b/src/com/android/settings/biometrics/face/FaceEnrollSidecar.java
+@@ -19,9 +19,12 @@ package com.android.settings.biometrics.face;
+ import android.app.Activity;
+ import android.app.settings.SettingsEnums;
+ import android.content.Intent;
++import android.content.res.Resources;
++import android.hardware.face.FaceEnrollCell;
+ import android.hardware.face.FaceManager;
+ import android.view.Surface;
+ 
++import com.android.settings.R;
+ import com.android.settings.biometrics.BiometricEnrollSidecar;
+ 
+ import java.util.Arrays;
+@@ -34,6 +37,9 @@ public class FaceEnrollSidecar extends BiometricEnrollSidecar {
+     private final int[] mDisabledFeatures;
+ 
+     private FaceUpdater mFaceUpdater;
++    private Resources mResources;
++    private boolean mWaitingForGlassesRemoval;
++    private boolean mGlassesStageHandled;
+ 
+     private Intent mIntent;
+ 
+@@ -48,7 +54,8 @@ public class FaceEnrollSidecar extends BiometricEnrollSidecar {
+     @Override
+     public void onAttach(Activity activity) {
+         super.onAttach(activity);
+-        mFaceUpdater = new FaceUpdater(activity);
++        mFaceUpdater = new FaceUpdater(activity.getApplicationContext());
++        mResources = activity.getResources();
+     }
+ 
+     @Override
+@@ -59,6 +66,23 @@ public class FaceEnrollSidecar extends BiometricEnrollSidecar {
+                 false /* debugConsent */, mIntent);
+     }
+ 
++    boolean isWaitingForGlassesRemoval() {
++        return mWaitingForGlassesRemoval;
++    }
++
++    public void resumeEnrollment() {
++        if (!mWaitingForGlassesRemoval) return;
++        if (mFaceUpdater.resumeEnrollment()) {
++            mWaitingForGlassesRemoval = false;
++            mGlassesStageHandled = true;
++        } else {
++            super.onEnrollmentError(
++                    android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_HW_UNAVAILABLE,
++                    mResources.getText(
++                            R.string.security_settings_face_enroll_error_generic_dialog_message));
++        }
++    }
++
+     private FaceManager.EnrollmentCallback mEnrollmentCallback
+             = new FaceManager.EnrollmentCallback() {
+ 
+@@ -67,8 +91,25 @@ public class FaceEnrollSidecar extends BiometricEnrollSidecar {
+             FaceEnrollSidecar.super.onEnrollmentProgress(remaining);
+         }
+ 
++        @Override
++        public void onEnrollmentFrame(int helpCode, CharSequence helpMessage,
++                FaceEnrollCell cell, int stage, float pan, float tilt, float distance) {
++            if (mResources.getBoolean(R.bool.config_face_enroll_samsung_pose_guidance)) {
++                final int message = SamsungFaceEnrollGuidance.getMessageResId(helpCode, stage);
++                if (message != 0) {
++                    helpMessage = mResources.getText(message);
++                }
++            }
++            onEnrollmentHelp(helpCode, helpMessage);
++        }
++
+         @Override
+         public void onEnrollmentHelp(int helpMsgId, CharSequence helpString) {
++            if (mResources.getBoolean(R.bool.config_face_enroll_samsung_pose_guidance)
++                    && SamsungFaceEnrollGuidance.isGlassesHelpCode(helpMsgId)) {
++                if (mGlassesStageHandled) return;
++                mWaitingForGlassesRemoval = true;
++            }
+             FaceEnrollSidecar.super.onEnrollmentHelp(helpMsgId, helpString);
+         }
+ 
+diff --git a/src/com/android/settings/biometrics/face/FaceSquareFrameLayout.java b/src/com/android/settings/biometrics/face/FaceSquareFrameLayout.java
+index 3aed5241f9a3bd1a9ae5eab70f6ad2710a3194e4..4643a4733186a912b0b4aefdd99427faff5bb4a4 100644
+--- a/src/com/android/settings/biometrics/face/FaceSquareFrameLayout.java
++++ b/src/com/android/settings/biometrics/face/FaceSquareFrameLayout.java
+@@ -20,9 +20,7 @@ import android.content.Context;
+ import android.util.AttributeSet;
+ import android.widget.FrameLayout;
+ 
+-/**
+- * Square layout that sets the height to be the same as width.
+- */
++/** Square preview layout that fits within the available width and height. */
+ public class FaceSquareFrameLayout extends FrameLayout {
+ 
+     public FaceSquareFrameLayout(Context context) {
+@@ -44,10 +42,10 @@ public class FaceSquareFrameLayout extends FrameLayout {
+ 
+     @Override
+     public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+-        // Don't call super, manually set their size below
+-        int size = MeasureSpec.getSize(widthMeasureSpec);
+-
+-        // Set this frame layout to be a square
++        final int width = MeasureSpec.getSize(widthMeasureSpec);
++        final int height = MeasureSpec.getSize(heightMeasureSpec);
++        final int size = MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED
++                ? width : Math.min(width, height);
+         setMeasuredDimension(size, size);
+ 
+         // Set the children to be the same size (square) as well
+diff --git a/src/com/android/settings/biometrics/face/FaceUpdater.java b/src/com/android/settings/biometrics/face/FaceUpdater.java
+index 99d6f09fc12adcaf03792f375287439fbec27c05..35cbf27b4d1e751a32a1662eed9add5e605cfa4f 100644
+--- a/src/com/android/settings/biometrics/face/FaceUpdater.java
++++ b/src/com/android/settings/biometrics/face/FaceUpdater.java
+@@ -52,6 +52,11 @@ public class FaceUpdater {
+         mFaceManager = faceManager;
+     }
+ 
++    /** Resume an active enrollment paused for user guidance. */
++    public boolean resumeEnrollment() {
++        return mFaceManager != null && mFaceManager.resumeEnrollment();
++    }
++
+     /** Wrapper around the {@link FaceManager#enroll} method. */
+     public void enroll(
+             int userId,
+diff --git a/src/com/android/settings/biometrics/face/SamsungFaceEnrollGuidance.java b/src/com/android/settings/biometrics/face/SamsungFaceEnrollGuidance.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..514c4e3f8ba03d2d7acc34b8dce100b91753aad8
+--- /dev/null
++++ b/src/com/android/settings/biometrics/face/SamsungFaceEnrollGuidance.java
+@@ -0,0 +1,59 @@
++/*
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.android.settings.biometrics.face;
++
++import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_VENDOR_BASE;
++
++import android.hardware.face.FaceEnrollStages;
++
++import com.android.settings.R;
++
++/** Samsung enrollment pose guidance, enabled by a device overlay. */
++final class SamsungFaceEnrollGuidance {
++    static final int GLASSES_HELP_CODE = FACE_ACQUIRED_VENDOR_BASE + 1016;
++    private SamsungFaceEnrollGuidance() {}
++
++    static boolean isGlassesHelpCode(int helpCode) {
++        return helpCode == GLASSES_HELP_CODE;
++    }
++
++    static boolean isPoseHelpCode(int helpCode) {
++        switch (helpCode - FACE_ACQUIRED_VENDOR_BASE) {
++            case 1024:
++            case 1025:
++            case 1029:
++            case 1030:
++            case 1050:
++            case 1051:
++                return true;
++            default:
++                return false;
++        }
++    }
++
++    static int getMessageResId(int helpCode, int stage) {
++        // FaceCallback adds FACE_ACQUIRED_VENDOR_BASE before delivering vendor codes.
++        switch (helpCode - FACE_ACQUIRED_VENDOR_BASE) {
++            case 1024:
++            case 1029:
++                return R.string.face_enroll_pose_look_ahead;
++            case 1025:
++            case 1030:
++                return R.string.face_enroll_pose_look_up;
++            case 1050:
++            case 1051:
++                if (stage == FaceEnrollStages.HOLD_STILL_IN_CENTER) {
++                    return R.string.face_enroll_pose_look_ahead;
++                }
++                if (stage == FaceEnrollStages.ENROLLING_MOVEMENT_1) {
++                    return R.string.face_enroll_pose_look_up;
++                }
++                // Never infer a pose from progress if the HAL did not specify one.
++                return 0;
++            default:
++                return 0;
++        }
++    }
++}
+diff --git a/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java b/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
+index 76bdd47ca25b546a8ec9d2b0468c7bda5f27bf19..b3e99aadf81d04322bdeb24193c4be53645c5c79 100644
+--- a/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
++++ b/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
+@@ -82,7 +82,11 @@ public class BuildNumberPreferenceController extends BasePreferenceController im
+ 
+     @Override
+     public CharSequence getSummary() {
+-        return BidiFormatter.getInstance().unicodeWrap(Build.DISPLAY);
++        String display = Build.DISPLAY;
++        if (!TextUtils.isEmpty(Build.TAGS) && !display.endsWith(" " + Build.TAGS)) {
++            display += " " + Build.TAGS;
++        }
++        return BidiFormatter.getInstance().unicodeWrap(display);
+     }
+ 
+     @Override

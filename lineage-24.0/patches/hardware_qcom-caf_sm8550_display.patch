@@ -1,0 +1,49 @@
+diff --git a/composer/hwc_display.cpp b/composer/hwc_display.cpp
+index 7e9fb6ff58e9e236efd495db195d79c1bc6e9b2b..c6004038e70527ff41a23fea10bcc001e755165d 100755
+--- a/composer/hwc_display.cpp
++++ b/composer/hwc_display.cpp
+@@ -807,7 +807,6 @@ void HWCDisplay::BuildLayerStack() {
+       layer_stack_.flags.fod_pressed_present = true;
+     } else {
+       layer->flags.fod_pressed = false;
+-      layer_stack_.flags.fod_pressed_present = false;
+     }
+ #endif
+ 
+diff --git a/composer/hwc_layers.cpp b/composer/hwc_layers.cpp
+index 3a413a1c351e897b91a06f0beeeab43f7c0b4fc7..006a744b8656106e87c780d2ab330c44a018c4f5 100644
+--- a/composer/hwc_layers.cpp
++++ b/composer/hwc_layers.cpp
+@@ -718,9 +718,9 @@ HWC2::Error HWCLayer::SetLayerVisibleRegion(hwc_region_t visible) {
+ HWC2::Error HWCLayer::SetLayerZOrder(uint32_t z) {
+ #ifdef UDFPS_ZPOS
+   bool fod_pressed = z & FOD_PRESSED_LAYER_ZORDER;
++  z &= ~FOD_PRESSED_LAYER_ZORDER;
+   if (fod_pressed_ != fod_pressed) {
+     fod_pressed_ = fod_pressed;
+-    z &= ~FOD_PRESSED_LAYER_ZORDER;
+     geometry_changes_ |= kZOrder;
+   }
+ #endif
+diff --git a/init/init.qti.display_boot.sh b/init/init.qti.display_boot.sh
+index dbc9db36bbcfa3469b9d8fcf3fc5b14bab21b68c..d49610c195c748e72c4afcecc0e7682d2a682157 100644
+--- a/init/init.qti.display_boot.sh
++++ b/init/init.qti.display_boot.sh
+@@ -82,7 +82,7 @@ case "$target" in
+         setprop vendor.display.enable_latch_media_content 1
+         setprop vendor.display.enable_inline_writeback 1
+         setprop vendor.display.timed_render_enable 1
+-        setprop debug.sf.disable_client_composition_cache 0
++        # SurfaceFlinger cache policy is set in the product build properties.
+         # set property for HHG
+         if [ "$subtype_id" -eq 1 ]; then
+             setprop vendor.display.disable_system_load_check 1
+@@ -108,7 +108,7 @@ case "$target" in
+         setprop vendor.display.enable_latch_media_content 1
+         setprop vendor.display.enable_inline_writeback 0
+         setprop vendor.display.timed_render_enable 1
+-        setprop debug.sf.disable_client_composition_cache 0
++        # SurfaceFlinger cache policy is set in the product build properties.
+         setprop vendor.display.enable_qsync_idle 1
+         ;;
+     esac

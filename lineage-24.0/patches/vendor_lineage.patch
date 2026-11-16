@@ -1,0 +1,24 @@
+diff --git a/config/version.mk b/config/version.mk
+index bc3fc56b37590bb63445d98a34c09baf92d86be5..3d3ed70f9d546c1f68707465f2528c4546ebc670 100644
+--- a/config/version.mk
++++ b/config/version.mk
+@@ -37,9 +37,17 @@ LINEAGE_VERSION := $(PRODUCT_VERSION_MAJOR).$(PRODUCT_VERSION_MINOR)-$(LINEAGE_V
+ # Display version
+ LINEAGE_DISPLAY_VERSION := $(PRODUCT_VERSION_MAJOR)-$(LINEAGE_VERSION_SUFFIX)
+ 
++# Keep package version strings intact while allowing a shorter Settings label.
++LINEAGE_SETTINGS_VERSION := $(LINEAGE_VERSION)
++LINEAGE_SETTINGS_DISPLAY_VERSION := $(LINEAGE_DISPLAY_VERSION)
++ifeq ($(LINEAGE_VERSION_SHOW_DEVICE),false)
++    LINEAGE_SETTINGS_VERSION := $(patsubst %-$(LINEAGE_BUILD),%,$(LINEAGE_VERSION))
++    LINEAGE_SETTINGS_DISPLAY_VERSION := $(patsubst %-$(LINEAGE_BUILD),%,$(LINEAGE_DISPLAY_VERSION))
++endif
++
+ # LineageOS version properties
+ PRODUCT_PRODUCT_PROPERTIES += \
+-    ro.lineage.version=$(LINEAGE_VERSION) \
+-    ro.lineage.display.version=$(LINEAGE_DISPLAY_VERSION) \
++    ro.lineage.version=$(LINEAGE_SETTINGS_VERSION) \
++    ro.lineage.display.version=$(LINEAGE_SETTINGS_DISPLAY_VERSION) \
+     ro.lineage.build.version=$(PRODUCT_VERSION_MAJOR).$(PRODUCT_VERSION_MINOR) \
+     ro.lineage.releasetype=$(LINEAGE_BUILDTYPE)

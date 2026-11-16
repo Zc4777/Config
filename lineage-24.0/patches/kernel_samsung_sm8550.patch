@@ -1,0 +1,52 @@
+diff --git a/arch/arm64/configs/gts9uwifi_defconfig b/arch/arm64/configs/gts9uwifi_defconfig
+index 1cf98a265a31b262ef6427591d6d9bf361e8a17e..8eb19388c78824d2c642b43166b525ce2cbb3247 100644
+--- a/arch/arm64/configs/gts9uwifi_defconfig
++++ b/arch/arm64/configs/gts9uwifi_defconfig
+@@ -1078,6 +1078,7 @@ CONFIG_DYNAMIC_DEBUG_CORE=y
+ CONFIG_DEBUG_INFO=y
+ CONFIG_DEBUG_INFO_DWARF4=y
+ CONFIG_DEBUG_INFO_BTF=y
++CONFIG_MODULE_ALLOW_BTF_MISMATCH=y
+ CONFIG_FRAME_WARN=0
+ CONFIG_HEADERS_INSTALL=y
+ # CONFIG_SECTION_MISMATCH_WARN_ONLY is not set
+diff --git a/drivers/input/sec_input/sec_common_fn.c b/drivers/input/sec_input/sec_common_fn.c
+index 8438ddee23a9abdb0c8de35cc4ecc32d90d053d3..a0d476bed272dd4f40b80703d9c0cd682b0bbc4a 100644
+--- a/drivers/input/sec_input/sec_common_fn.c
++++ b/drivers/input/sec_input/sec_common_fn.c
+@@ -668,7 +668,10 @@ static void sec_input_coord_report(struct device *dev, u8 t_id)
+ 		}
+ 
+ 		input_mt_slot(pdata->input_dev, t_id);
+-		input_mt_report_slot_state(pdata->input_dev, MT_TOOL_FINGER, 1);
++		/* Keep a classified palm rejected until this contact is released. */
++		input_mt_report_slot_state(pdata->input_dev,
++				(pdata->coord[t_id].palm || pdata->coord[t_id].palm_count) ?
++				MT_TOOL_PALM : MT_TOOL_FINGER, 1);
+ 		input_report_key(pdata->input_dev, BTN_TOUCH, 1);
+ 		input_report_key(pdata->input_dev, BTN_TOOL_FINGER, 1);
+ 		input_report_key(pdata->input_dev, BTN_PALM, pdata->palm_flag);
+@@ -921,6 +924,7 @@ static void sec_input_set_prop(struct device *dev, struct input_dev *input_dev,
+ 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, pdata->max_y, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
++	input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER, MT_TOOL_PALM, 0, 0);
+ 	if (pdata->support_mt_pressure)
+ 		input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+ 
+@@ -962,6 +966,7 @@ static void sec_input_set_prop2(struct device *dev, struct input_dev *input_dev,
+ 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, pdata->max_y, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
++	input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER, MT_TOOL_PALM, 0, 0);
+ 	if (pdata->support_mt_pressure)
+ 		input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+ 
+@@ -1003,6 +1008,7 @@ static void sec_input_set_prop_pad(struct device *dev, struct input_dev *input_d
+ 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, pdata->max_y, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+ 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
++	input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER, MT_TOOL_PALM, 0, 0);
+ 	if (pdata->support_mt_pressure)
+ 		input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+ 

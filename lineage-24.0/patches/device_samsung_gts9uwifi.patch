@@ -1,0 +1,2874 @@
+diff --git a/Android.bp b/Android.bp
+index 167e8cb4105eaeaf06ffb3c871b5b40fb77bdd87..750c8548f83882cc359e46a43810d640158cc6a9 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -6,6 +6,13 @@
+ soong_namespace {
+ }
+ 
++install_symlink {
++    name: "spen_firmware_early_symlink",
++    vendor: true,
++    installed_location: "firmware/early/wez01_gts9u.bin",
++    symlink_target: "/vendor/firmware/wez01_gts9u.bin",
++}
++
+ install_symlink {
+     name: "firmware_wlanmdsp.otaupdate_symlink",
+     vendor: true,
+@@ -40,3 +47,10 @@ install_symlink {
+     installed_location: "firmware/wlan/qca_cld/kiwi_v2/WCNSS_qcom_cfg.ini",
+     symlink_target: "/vendor/etc/wifi/kiwi_v2/WCNSS_qcom_cfg.ini",
+ }
++
++// Share the device partition layout with the common vendor fstab module.
++filegroup {
++    name: "fstab.gts9uwifi.source",
++    srcs: ["init/fstab.qcom"],
++    visibility: ["//visibility:public"],
++}
+diff --git a/BoardConfig.mk b/BoardConfig.mk
+index 0d7d10008b0c207ba5871551abd55bc24957110f..195755aa39c4fc6fb30b2ec2f728bb1bef0004f3 100644
+--- a/BoardConfig.mk
++++ b/BoardConfig.mk
+@@ -12,6 +12,9 @@ TARGET_IS_TABLET := true
+ 
+ DEVICE_PATH := device/samsung/gts9uwifi
+ 
++# Use the same partition layout in recovery and normal boot.
++TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/init/fstab.qcom
++
+ # Assert
+ TARGET_OTA_ASSERT_DEVICE := gts9uwifi,gts9u
+ 
+@@ -20,6 +23,12 @@ TARGET_SCREEN_DENSITY := 350
+ 
+ # Kernel
+ TARGET_KERNEL_CONFIG := gts9uwifi_defconfig
++# Limit nested kernel builds alongside Android compilation.
++TARGET_KERNEL_ADDITIONAL_FLAGS += -j8
++
++# Let the kernel read the S Pen firmware during I2C probe.
++BOARD_KERNEL_CMDLINE := $(filter-out firmware_class.path=%,$(BOARD_KERNEL_CMDLINE))
++BOARD_KERNEL_CMDLINE += firmware_class.path=/vendor/firmware_mnt/image,/vendor/firmware/early
+ 
+ # Kernel Modules
+ BOARD_RECOVERY_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.recovery))
+@@ -67,5 +76,6 @@ TARGET_USES_SAMSUNG_FINGERPRINT := true
+ 
+ BOARD_RECOVERYIMAGE_PARTITION_SIZE := 104857600
+ 
+-# SEPolicy (for bootanimation rotation)
++# SEPolicy
+ PRODUCT_PRIVATE_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/private
++BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
+diff --git a/configs/displayconfig/display_id_4630946478520245635.xml b/configs/displayconfig/display_id_4630946478520245635.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..073f1a3393899ab7bf952bef8f1b06e00e789425
+--- /dev/null
++++ b/configs/displayconfig/display_id_4630946478520245635.xml
+@@ -0,0 +1,373 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<displayConfiguration>
++    <!-- GTS9U_ANA38407_AMSA46AS02 NORMAL/HBM candela maps. Value is panel level / 547.
++         Sub-nit spacing breaks ties from the rounded panel table for inverse interpolation. -->
++    <screenBrightnessMap interpolation="linear">
++        <point><value>0.000000000000</value><nits>1.9</nits></point>
++        <point><value>0.001828153565</value><nits>2</nits></point>
++        <point><value>0.003656307130</value><nits>3.0</nits></point>
++        <point><value>0.005484460695</value><nits>3.1</nits></point>
++        <point><value>0.009140767824</value><nits>5.0</nits></point>
++        <point><value>0.010968921389</value><nits>5.1</nits></point>
++        <point><value>0.014625228519</value><nits>7.0</nits></point>
++        <point><value>0.016453382084</value><nits>7.1</nits></point>
++        <point><value>0.027422303473</value><nits>13.0</nits></point>
++        <point><value>0.029250457038</value><nits>13.1</nits></point>
++        <point><value>0.047531992687</value><nits>23</nits></point>
++        <point><value>0.049360146252</value><nits>25</nits></point>
++        <point><value>0.062157221207</value><nits>32</nits></point>
++        <point><value>0.063985374771</value><nits>34</nits></point>
++        <point><value>0.071297989031</value><nits>38</nits></point>
++        <point><value>0.073126142596</value><nits>40</nits></point>
++        <point><value>0.078610603291</value><nits>43</nits></point>
++        <point><value>0.080438756856</value><nits>45</nits></point>
++        <point><value>0.085923217550</value><nits>48</nits></point>
++        <point><value>0.087751371115</value><nits>50</nits></point>
++        <point><value>0.091407678245</value><nits>52</nits></point>
++        <point><value>0.093235831810</value><nits>54</nits></point>
++        <point><value>0.096892138940</value><nits>56</nits></point>
++        <point><value>0.098720292505</value><nits>58</nits></point>
++        <point><value>0.102376599634</value><nits>60</nits></point>
++        <point><value>0.104204753199</value><nits>62</nits></point>
++        <point><value>0.107861060329</value><nits>64</nits></point>
++        <point><value>0.109689213894</value><nits>66</nits></point>
++        <point><value>0.113345521024</value><nits>68</nits></point>
++        <point><value>0.115173674589</value><nits>70</nits></point>
++        <point><value>0.117001828154</value><nits>71</nits></point>
++        <point><value>0.118829981718</value><nits>73</nits></point>
++        <point><value>0.120658135283</value><nits>74</nits></point>
++        <point><value>0.122486288848</value><nits>76</nits></point>
++        <point><value>0.126142595978</value><nits>78</nits></point>
++        <point><value>0.127970749543</value><nits>80</nits></point>
++        <point><value>0.129798903108</value><nits>81</nits></point>
++        <point><value>0.131627056673</value><nits>83</nits></point>
++        <point><value>0.133455210238</value><nits>84</nits></point>
++        <point><value>0.135283363803</value><nits>86</nits></point>
++        <point><value>0.137111517367</value><nits>87</nits></point>
++        <point><value>0.138939670932</value><nits>89</nits></point>
++        <point><value>0.140767824497</value><nits>90</nits></point>
++        <point><value>0.142595978062</value><nits>92</nits></point>
++        <point><value>0.144424131627</value><nits>93</nits></point>
++        <point><value>0.146252285192</value><nits>95</nits></point>
++        <point><value>0.148080438757</value><nits>96</nits></point>
++        <point><value>0.149908592322</value><nits>98</nits></point>
++        <point><value>0.151736745887</value><nits>99</nits></point>
++        <point><value>0.153564899452</value><nits>101</nits></point>
++        <point><value>0.155393053016</value><nits>102</nits></point>
++        <point><value>0.157221206581</value><nits>104</nits></point>
++        <point><value>0.159049360146</value><nits>105</nits></point>
++        <point><value>0.160877513711</value><nits>107</nits></point>
++        <point><value>0.162705667276</value><nits>108</nits></point>
++        <point><value>0.166361974406</value><nits>112</nits></point>
++        <point><value>0.168190127971</value><nits>113</nits></point>
++        <point><value>0.170018281536</value><nits>115</nits></point>
++        <point><value>0.171846435101</value><nits>116</nits></point>
++        <point><value>0.173674588665</value><nits>118</nits></point>
++        <point><value>0.175502742230</value><nits>119</nits></point>
++        <point><value>0.179159049360</value><nits>123</nits></point>
++        <point><value>0.180987202925</value><nits>124</nits></point>
++        <point><value>0.182815356490</value><nits>126</nits></point>
++        <point><value>0.184643510055</value><nits>127</nits></point>
++        <point><value>0.188299817185</value><nits>131</nits></point>
++        <point><value>0.190127970750</value><nits>132</nits></point>
++        <point><value>0.193784277879</value><nits>136</nits></point>
++        <point><value>0.195612431444</value><nits>137</nits></point>
++        <point><value>0.197440585009</value><nits>139</nits></point>
++        <point><value>0.199268738574</value><nits>140</nits></point>
++        <point><value>0.202925045704</value><nits>144</nits></point>
++        <point><value>0.204753199269</value><nits>145</nits></point>
++        <point><value>0.208409506399</value><nits>149</nits></point>
++        <point><value>0.210237659963</value><nits>150</nits></point>
++        <point><value>0.215722120658</value><nits>156</nits></point>
++        <point><value>0.217550274223</value><nits>157</nits></point>
++        <point><value>0.221206581353</value><nits>161</nits></point>
++        <point><value>0.223034734918</value><nits>162</nits></point>
++        <point><value>0.226691042048</value><nits>166</nits></point>
++        <point><value>0.228519195612</value><nits>167</nits></point>
++        <point><value>0.234003656307</value><nits>173</nits></point>
++        <point><value>0.235831809872</value><nits>174</nits></point>
++        <point><value>0.241316270567</value><nits>180</nits></point>
++        <point><value>0.243144424132</value><nits>181</nits></point>
++        <point><value>0.248628884826</value><nits>187</nits></point>
++        <point><value>0.250457038391</value><nits>188</nits></point>
++        <point><value>0.255941499086</value><nits>194</nits></point>
++        <point><value>0.257769652651</value><nits>195</nits></point>
++        <point><value>0.265082266910</value><nits>203</nits></point>
++        <point><value>0.266910420475</value><nits>204</nits></point>
++        <point><value>0.276051188300</value><nits>214</nits></point>
++        <point><value>0.277879341865</value><nits>215</nits></point>
++        <point><value>0.287020109689</value><nits>225</nits></point>
++        <point><value>0.288848263254</value><nits>226</nits></point>
++        <point><value>0.297989031079</value><nits>236</nits></point>
++        <point><value>0.299817184644</value><nits>237</nits></point>
++        <point><value>0.314442413163</value><nits>253</nits></point>
++        <point><value>0.316270566728</value><nits>254</nits></point>
++        <point><value>0.334552102377</value><nits>274</nits></point>
++        <point><value>0.336380255941</value><nits>275</nits></point>
++        <point><value>0.418647166362</value><nits>365</nits></point>
++        <point><value>0.420475319927</value><nits>368</nits></point>
++        <point><value>0.440585009141</value><nits>390</nits></point>
++        <point><value>0.442413162706</value><nits>393</nits></point>
++        <point><value>0.458866544790</value><nits>411</nits></point>
++        <point><value>0.460694698355</value><nits>414</nits></point>
++        <point><value>0.466179159049</value><nits>420</nits></point>
++        <point><value>0.468007312614</value><nits>422</nits></point>
++        <point><value>0.469835466179</value><nits>423</nits></point>
++        <point><value>0.473491773309</value><nits>427</nits></point>
++        <point><value>0.475319926874</value><nits>428</nits></point>
++        <point><value>0.478976234004</value><nits>432</nits></point>
++        <point><value>0.480804387569</value><nits>433</nits></point>
++        <point><value>0.482632541133</value><nits>435</nits></point>
++        <point><value>0.484460694698</value><nits>436</nits></point>
++        <point><value>0.488117001828</value><nits>440</nits></point>
++        <point><value>0.489945155393</value><nits>441</nits></point>
++        <point><value>0.493601462523</value><nits>445</nits></point>
++        <point><value>0.495429616088</value><nits>446</nits></point>
++        <point><value>0.499085923218</value><nits>450</nits></point>
++        <point><value>0.500914076782</value><nits>451</nits></point>
++        <point><value>0.504570383912</value><nits>455</nits></point>
++        <point><value>0.506398537477</value><nits>456</nits></point>
++        <point><value>0.510054844607</value><nits>460</nits></point>
++        <point><value>0.511882998172</value><nits>461</nits></point>
++        <point><value>0.513711151737</value><nits>463</nits></point>
++        <point><value>0.515539305302</value><nits>464</nits></point>
++        <point><value>0.519195612431</value><nits>468</nits></point>
++        <point><value>0.521023765996</value><nits>469</nits></point>
++        <point><value>0.524680073126</value><nits>473</nits></point>
++        <point><value>0.526508226691</value><nits>474</nits></point>
++        <point><value>0.530164533821</value><nits>478</nits></point>
++        <point><value>0.531992687386</value><nits>479</nits></point>
++        <point><value>0.535648994516</value><nits>483</nits></point>
++        <point><value>0.537477148080</value><nits>484</nits></point>
++        <point><value>0.541133455210</value><nits>488</nits></point>
++        <point><value>0.542961608775</value><nits>489</nits></point>
++        <point><value>0.544789762340</value><nits>491</nits></point>
++        <point><value>0.546617915905</value><nits>492</nits></point>
++        <point><value>0.550274223035</value><nits>496</nits></point>
++        <point><value>0.552102376600</value><nits>497</nits></point>
++        <point><value>0.555758683729</value><nits>501</nits></point>
++        <point><value>0.557586837294</value><nits>502</nits></point>
++        <point><value>0.561243144424</value><nits>506</nits></point>
++        <point><value>0.563071297989</value><nits>507</nits></point>
++        <point><value>0.566727605119</value><nits>511</nits></point>
++        <point><value>0.568555758684</value><nits>512</nits></point>
++        <point><value>0.572212065814</value><nits>516</nits></point>
++        <point><value>0.574040219378</value><nits>517</nits></point>
++        <point><value>0.575868372943</value><nits>519</nits></point>
++        <point><value>0.577696526508</value><nits>520</nits></point>
++        <point><value>0.581352833638</value><nits>524</nits></point>
++        <point><value>0.583180987203</value><nits>525</nits></point>
++        <point><value>0.586837294333</value><nits>529</nits></point>
++        <point><value>0.588665447898</value><nits>530</nits></point>
++        <point><value>0.592321755027</value><nits>534</nits></point>
++        <point><value>0.594149908592</value><nits>535</nits></point>
++        <point><value>0.597806215722</value><nits>539</nits></point>
++        <point><value>0.599634369287</value><nits>540</nits></point>
++        <point><value>0.603290676417</value><nits>544</nits></point>
++        <point><value>0.605118829982</value><nits>545</nits></point>
++        <point><value>0.606946983547</value><nits>547</nits></point>
++        <point><value>0.608775137112</value><nits>548</nits></point>
++        <point><value>0.612431444241</value><nits>552</nits></point>
++        <point><value>0.614259597806</value><nits>553</nits></point>
++        <point><value>0.617915904936</value><nits>557</nits></point>
++        <point><value>0.619744058501</value><nits>558</nits></point>
++        <point><value>0.623400365631</value><nits>562</nits></point>
++        <point><value>0.625228519196</value><nits>563</nits></point>
++        <point><value>0.628884826325</value><nits>567</nits></point>
++        <point><value>0.630712979890</value><nits>568</nits></point>
++        <point><value>0.634369287020</value><nits>572</nits></point>
++        <point><value>0.636197440585</value><nits>573</nits></point>
++        <point><value>0.638025594150</value><nits>575</nits></point>
++        <point><value>0.639853747715</value><nits>576</nits></point>
++        <point><value>0.643510054845</value><nits>580</nits></point>
++        <point><value>0.645338208410</value><nits>581</nits></point>
++        <point><value>0.648994515539</value><nits>585</nits></point>
++        <point><value>0.650822669104</value><nits>586</nits></point>
++        <point><value>0.654478976234</value><nits>590</nits></point>
++        <point><value>0.656307129799</value><nits>591</nits></point>
++        <point><value>0.659963436929</value><nits>595</nits></point>
++        <point><value>0.661791590494</value><nits>596</nits></point>
++        <point><value>0.665447897623</value><nits>600</nits></point>
++        <point><value>0.667276051188</value><nits>601</nits></point>
++        <point><value>0.669104204753</value><nits>603</nits></point>
++        <point><value>0.670932358318</value><nits>604</nits></point>
++        <point><value>0.674588665448</value><nits>608</nits></point>
++        <point><value>0.676416819013</value><nits>609</nits></point>
++        <point><value>0.680073126143</value><nits>613</nits></point>
++        <point><value>0.681901279707</value><nits>614</nits></point>
++        <point><value>0.685557586837</value><nits>618</nits></point>
++        <point><value>0.687385740402</value><nits>619</nits></point>
++        <point><value>0.691042047532</value><nits>623</nits></point>
++        <point><value>0.692870201097</value><nits>624</nits></point>
++        <point><value>0.696526508227</value><nits>628</nits></point>
++        <point><value>0.698354661792</value><nits>629</nits></point>
++        <point><value>0.700182815356</value><nits>631</nits></point>
++        <point><value>0.702010968921</value><nits>632</nits></point>
++        <point><value>0.705667276051</value><nits>636</nits></point>
++        <point><value>0.707495429616</value><nits>637</nits></point>
++        <point><value>0.711151736746</value><nits>641</nits></point>
++        <point><value>0.712979890311</value><nits>642</nits></point>
++        <point><value>0.716636197441</value><nits>646</nits></point>
++        <point><value>0.718464351005</value><nits>647</nits></point>
++        <point><value>0.720292504570</value><nits>649</nits></point>
++        <point><value>0.722120658135</value><nits>650</nits></point>
++        <point><value>0.727605118830</value><nits>656</nits></point>
++        <point><value>0.729433272395</value><nits>657</nits></point>
++        <point><value>0.731261425960</value><nits>659</nits></point>
++        <point><value>0.733089579525</value><nits>660</nits></point>
++        <point><value>0.736745886654</value><nits>664</nits></point>
++        <point><value>0.738574040219</value><nits>665</nits></point>
++        <point><value>0.742230347349</value><nits>669</nits></point>
++        <point><value>0.744058500914</value><nits>670</nits></point>
++        <point><value>0.747714808044</value><nits>674</nits></point>
++        <point><value>0.749542961609</value><nits>675</nits></point>
++        <point><value>0.753199268739</value><nits>679</nits></point>
++        <point><value>0.755027422303</value><nits>680</nits></point>
++        <point><value>0.758683729433</value><nits>684</nits></point>
++        <point><value>0.760511882998</value><nits>685</nits></point>
++        <point><value>0.762340036563</value><nits>687</nits></point>
++        <point><value>0.764168190128</value><nits>688</nits></point>
++        <point><value>0.767824497258</value><nits>692</nits></point>
++        <point><value>0.769652650823</value><nits>693</nits></point>
++        <point><value>0.773308957952</value><nits>697</nits></point>
++        <point><value>0.775137111517</value><nits>698</nits></point>
++        <point><value>0.778793418647</value><nits>702</nits></point>
++        <point><value>0.780621572212</value><nits>703</nits></point>
++        <point><value>0.784277879342</value><nits>707</nits></point>
++        <point><value>0.786106032907</value><nits>708</nits></point>
++        <point><value>0.789762340037</value><nits>712</nits></point>
++        <point><value>0.791590493601</value><nits>713</nits></point>
++        <point><value>0.793418647166</value><nits>715</nits></point>
++        <point><value>0.795246800731</value><nits>716</nits></point>
++        <point><value>0.798903107861</value><nits>720</nits></point>
++        <point><value>0.800731261426</value><nits>721</nits></point>
++        <point><value>0.804387568556</value><nits>725</nits></point>
++        <point><value>0.806215722121</value><nits>726</nits></point>
++        <point><value>0.809872029250</value><nits>730</nits></point>
++        <point><value>0.811700182815</value><nits>731</nits></point>
++        <point><value>0.815356489945</value><nits>735</nits></point>
++        <point><value>0.817184643510</value><nits>736</nits></point>
++        <point><value>0.820840950640</value><nits>740</nits></point>
++        <point><value>0.822669104205</value><nits>741</nits></point>
++        <point><value>0.824497257770</value><nits>743</nits></point>
++        <point><value>0.826325411335</value><nits>744</nits></point>
++        <point><value>0.829981718464</value><nits>748</nits></point>
++        <point><value>0.831809872029</value><nits>749</nits></point>
++        <point><value>0.835466179159</value><nits>753</nits></point>
++        <point><value>0.837294332724</value><nits>754</nits></point>
++        <point><value>0.840950639854</value><nits>758</nits></point>
++        <point><value>0.842778793419</value><nits>759</nits></point>
++        <point><value>0.846435100548</value><nits>763</nits></point>
++        <point><value>0.848263254113</value><nits>764</nits></point>
++        <point><value>0.851919561243</value><nits>768</nits></point>
++        <point><value>0.853747714808</value><nits>769</nits></point>
++        <point><value>0.855575868373</value><nits>771</nits></point>
++        <point><value>0.857404021938</value><nits>772</nits></point>
++        <point><value>0.861060329068</value><nits>776</nits></point>
++        <point><value>0.862888482633</value><nits>777</nits></point>
++        <point><value>0.866544789762</value><nits>781</nits></point>
++        <point><value>0.868372943327</value><nits>782</nits></point>
++        <point><value>0.872029250457</value><nits>786</nits></point>
++        <point><value>0.873857404022</value><nits>787</nits></point>
++        <point><value>0.877513711152</value><nits>791</nits></point>
++        <point><value>0.879341864717</value><nits>792</nits></point>
++        <point><value>0.882998171846</value><nits>796</nits></point>
++        <point><value>0.884826325411</value><nits>797</nits></point>
++        <point><value>0.886654478976</value><nits>799</nits></point>
++        <point><value>0.888482632541</value><nits>800</nits></point>
++        <point><value>0.892138939671</value><nits>804</nits></point>
++        <point><value>0.893967093236</value><nits>805</nits></point>
++        <point><value>0.897623400366</value><nits>809</nits></point>
++        <point><value>0.899451553931</value><nits>810</nits></point>
++        <point><value>0.903107861060</value><nits>814</nits></point>
++        <point><value>0.904936014625</value><nits>815</nits></point>
++        <point><value>0.908592321755</value><nits>819</nits></point>
++        <point><value>0.910420475320</value><nits>820</nits></point>
++        <point><value>0.914076782450</value><nits>824</nits></point>
++        <point><value>0.915904936015</value><nits>825</nits></point>
++        <point><value>0.917733089580</value><nits>827</nits></point>
++        <point><value>0.919561243144</value><nits>828</nits></point>
++        <point><value>0.923217550274</value><nits>832</nits></point>
++        <point><value>0.925045703839</value><nits>833</nits></point>
++        <point><value>0.928702010969</value><nits>837</nits></point>
++        <point><value>0.930530164534</value><nits>838</nits></point>
++        <point><value>0.934186471664</value><nits>842</nits></point>
++        <point><value>0.936014625229</value><nits>843</nits></point>
++        <point><value>0.939670932358</value><nits>847</nits></point>
++        <point><value>0.941499085923</value><nits>848</nits></point>
++        <point><value>0.945155393053</value><nits>852</nits></point>
++        <point><value>0.946983546618</value><nits>853</nits></point>
++        <point><value>0.948811700183</value><nits>855</nits></point>
++        <point><value>0.950639853748</value><nits>856</nits></point>
++        <point><value>0.954296160878</value><nits>860</nits></point>
++        <point><value>0.956124314442</value><nits>861</nits></point>
++        <point><value>0.959780621572</value><nits>865</nits></point>
++        <point><value>0.961608775137</value><nits>866</nits></point>
++        <point><value>0.965265082267</value><nits>870</nits></point>
++        <point><value>0.967093235832</value><nits>871</nits></point>
++        <point><value>0.970749542962</value><nits>875</nits></point>
++        <point><value>0.972577696527</value><nits>876</nits></point>
++        <point><value>0.976234003656</value><nits>880</nits></point>
++        <point><value>0.978062157221</value><nits>881</nits></point>
++        <point><value>0.979890310786</value><nits>883</nits></point>
++        <point><value>0.981718464351</value><nits>884</nits></point>
++        <point><value>0.985374771481</value><nits>888</nits></point>
++        <point><value>0.987202925046</value><nits>889</nits></point>
++        <point><value>0.990859232176</value><nits>893</nits></point>
++        <point><value>0.992687385740</value><nits>894</nits></point>
++        <point><value>0.996343692870</value><nits>898</nits></point>
++        <point><value>1.000000000000</value><nits>900</nits></point>
++    </screenBrightnessMap>
++
++    <!-- Preserve the original default of platform level 128 in the normal range. -->
++    <screenBrightnessDefault>0.234003656307</screenBrightnessDefault>
++    <highBrightnessMode enabled="true">
++        <transitionPoint>0.466179159049</transitionPoint>
++        <!-- The CYG1 product overlay requests outdoor HBM from 3000 lux. -->
++        <minimumLux>3000</minimumLux>
++        <timing>
++            <!-- Use Android's existing five-minute budget per thirty-minute window. -->
++            <timeWindowSecs>1800</timeWindowSecs>
++            <timeMaxSecs>300</timeMaxSecs>
++            <timeMinSecs>60</timeMinSecs>
++        </timing>
++        <allowInLowPowerMode>false</allowInLowPowerMode>
++        <!-- Keep SDR white stable during HDR composition. Limit the initial
++             calibration to about 700 nits at the 420-nit indoor SDR maximum. -->
++        <sdrHdrRatioMap>
++            <point>
++                <sdrNits>2</sdrNits>
++                <hdrRatio>2.0</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>20</sdrNits>
++                <hdrRatio>2.0</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>80</sdrNits>
++                <hdrRatio>2.5</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>200</sdrNits>
++                <hdrRatio>2.5</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>420</sdrNits>
++                <hdrRatio>1.666667</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>600</sdrNits>
++                <hdrRatio>1.30</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>750</sdrNits>
++                <hdrRatio>1.10</hdrRatio>
++            </point>
++            <point>
++                <sdrNits>900</sdrNits>
++                <hdrRatio>1.0</hdrRatio>
++            </point>
++        </sdrHdrRatioMap>
++    </highBrightnessMode>
++</displayConfiguration>
+diff --git a/configs/floating_feature.xml b/configs/floating_feature.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..e7bb548c4d7bb38c8dd04a92ae2e3bf3f827da1c
+--- /dev/null
++++ b/configs/floating_feature.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<SecFloatingFeatureSet>
++    <SEC_FLOATING_FEATURE_SETTINGS_CONFIG_BRAND_NAME>Galaxy Tab S9 Ultra</SEC_FLOATING_FEATURE_SETTINGS_CONFIG_BRAND_NAME>
++</SecFloatingFeatureSet>
+diff --git a/configs/ssg/sec_channel.rc b/configs/ssg/sec_channel.rc
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e1e951a86db77ac220106ec86b4fa257d45f17e
+--- /dev/null
++++ b/configs/ssg/sec_channel.rc
+@@ -0,0 +1,3 @@
++# SM-X910 is Wi-Fi only. Keep the TrustZone channel and omit modem transport.
++tz_enable=1
++modem_enable=0
+diff --git a/device.mk b/device.mk
+index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50da71dd91 100644
+--- a/device.mk
++++ b/device.mk
+@@ -24,6 +24,10 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+     ro.bootanim.set_orientation_logical_0=ORIENTATION_90
+ 
+ # Init
++# This tablet has no vm-bootsys or bluetooth firmware partitions.
++SM8550_FSTAB := device/samsung/gts9uwifi/init/fstab.qcom
++$(call soong_config_set,samsung_sm8550_fstab,gts9uwifi,true)
++
+ PRODUCT_PACKAGES += \
+     init.gts9uwifi.rc
+ 
+@@ -34,7 +38,26 @@ PRODUCT_SOONG_NAMESPACES += \
+ # Overlay
+ DEVICE_PACKAGE_OVERLAYS += \
+     $(LOCAL_PATH)/overlay \
+-    $(LOCAL_PATH)/overlay-lineage
++    $(LOCAL_PATH)/overlay-lineage \
++    $(LOCAL_PATH)/overlay-face-orientation
++
++# Activity orientations are read from the Settings APK when it is parsed.
++PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += $(LOCAL_PATH)/overlay-face-orientation
++
++# Samsung commercial device name
++PRODUCT_COPY_FILES += \
++    $(LOCAL_PATH)/configs/floating_feature.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/floating_feature.xml
++
++# Built-in display brightness and outdoor HBM
++PRODUCT_COPY_FILES += \
++    $(LOCAL_PATH)/configs/displayconfig/display_id_4630946478520245635.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946478520245635.xml
++
++# Security service transport for this Wi-Fi-only tablet
++PRODUCT_COPY_FILES += \
++    $(LOCAL_PATH)/configs/ssg/sec_channel.rc:$(TARGET_COPY_OUT_VENDOR)/etc/sec_channel.rc
++
++# S Pen firmware lookup during I2C probe.
++PRODUCT_PACKAGES += spen_firmware_early_symlink
+ 
+ # WiFi firmware symlinks
+ PRODUCT_PACKAGES += \
+@@ -54,9 +77,6 @@ PRODUCT_PACKAGES += \
+ 
+ # SamsungParts
+ PRODUCT_PACKAGES += \
+-   AdvancedDisplay \
+-   SamsungParts \
+-   SamsungBiometrics \
+    SPenActions \
+    vendor.samsung.hardware.spen-service
+ 
+@@ -67,21 +87,14 @@ PRODUCT_COPY_FILES += \
+ PRODUCT_COPY_FILES += \
+     $(LOCAL_PATH)/configs/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
+ 
+-# FaceUnlock service
+-PRODUCT_PACKAGES += \
+-    FaceUnlock
+-
+-PRODUCT_SYSTEM_EXT_PROPERTIES += \
+-    ro.face.sense_service=true \
+-    ro.face.sense_service.camera_id=1
+-
++# Samsung's CYG1 face HAL uses the framework FaceService via IFace/default.
+ PRODUCT_COPY_FILES += \
+-    frameworks/native/data/etc/android.hardware.biometrics.face.xml:$(TARGET_COPY_OUT_SYSTEM_EXT)/etc/permissions/android.hardware.biometrics.face.xml
++    frameworks/native/data/etc/android.hardware.biometrics.face.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.biometrics.face.xml
+ 
+ # FOD
+-$(call soong_config_set,samsung_udfps,udfps_zorder,0x20000000u)
+-$(call soong_config_set,samsung_udfps,dim_layer_zorder,0x20000001u)
+-$(call soong_config_set, qtidisplay, samsung_fingerprint, true)
++$(call soong_config_set,samsungUdfpsVars,udfps_zorder,0x20000000u)
++$(call soong_config_set,samsungUdfpsVars,dim_layer_zorder,0x20000001u)
++$(call soong_config_set,qtidisplay,samsung_udfps,true)
+ $(call soong_config_set, qtidisplay, udfps, true)
+ $(call soong_config_set,surfaceflinger,udfps_lib,//hardware/samsung:libudfps_extension.samsung)
+ $(call soong_config_set,samsungTouchVars,enableGloveMode,false)
+@@ -94,3 +107,9 @@ $(call inherit-product, device/samsung/sm8550-common/common.mk)
+ $(call inherit-product, vendor/samsung/gts9uwifi/gts9uwifi-vendor.mk)
+ 
+ $(call inherit-product, hardware/dolby/dolby.mk)
++PRODUCT_PACKAGES += SamsungDAP
++
++# Samsung Wi-Fi MAC provisioning before CNSS cold calibration.
++PRODUCT_PACKAGES += \
++    macloader \
++    init.gts9uwifi.wifi.rc
+diff --git a/extract-files.py b/extract-files.py
+index b72fe67445ca529d7374ab40110f698ba98fb3cc..779aa2e69f812626177c76db67e01d328ab3c143 100755
+--- a/extract-files.py
++++ b/extract-files.py
+@@ -4,16 +4,27 @@
+ # SPDX-License-Identifier: Apache-2.0
+ #
+ 
++from hashlib import sha1
++from pathlib import Path
++from struct import pack_into, unpack_from
++
++from extract_utils.fixups_blob import (
++    BlobFixupCtx,
++    blob_fixup,
++    blob_fixups_user_type,
++)
+ from extract_utils.fixups_lib import (
+     lib_fixups,
+     lib_fixups_user_type,
+ )
++from extract_utils.file import File
+ from extract_utils.main import (
+     ExtractUtils,
+     ExtractUtilsModule,
+ )
+ 
+ namespace_imports = [
++    'device/samsung/gts9uwifi',
+     'device/samsung/sm8550-common',
+     'hardware/qcom-caf/sm8550',
+     'vendor/qcom/opensource/commonsys-intf/display',
+@@ -32,9 +43,105 @@ lib_fixups: lib_fixups_user_type = {
+     ): lib_fixup_vendor_suffix,
+ }
+ 
++def fix_face_preview(
++    _ctx: BlobFixupCtx, _file: File, file_path: str, **_kwargs,
++):
++    path = Path(file_path)
++    contents = bytearray(path.read_bytes())
++    if sha1(contents).hexdigest() != '0254f446de6531c5cae33583052aa73f0c8c5246':
++        raise ValueError('Face preview conversion patch requires the CYG1 face service')
++
++    # getANativeWindow inlines a VNDK 33 buffer producer constructor. Replace it
++    # with a branch to the Surface constructor's PLT entry, used only here.
++    entry = 0x12840
++    plt = 0x188b0
++    branch = 0x14000000 | ((plt - entry) >> 2)
++    contents[entry:entry + 4] = branch.to_bytes(4, 'little')
++
++    # Redirect the unused constructor import to the matching current-ABI wrapper.
++    constructor = b'_ZN7android7SurfaceC1ERKNS_2spINS_22IGraphicBufferProducerEEEbRKNS1_INS_7IBinderEEE\0'
++    replacement = b'gts9u_face_preview_window'
++    if contents.count(constructor) != 1:
++        raise ValueError('Expected a single Surface constructor import in the CYG1 face service')
++    contents = contents.replace(constructor, replacement.ljust(len(constructor), b'\0'))
++    path.write_bytes(contents)
++
++
++def fix_face_camera_window(
++    _ctx: BlobFixupCtx, _file: File, file_path: str, **_kwargs,
++):
++    path = Path(file_path)
++    contents = path.read_bytes()
++    if sha1(contents).hexdigest() != 'd93cb6bc583341d281c02cdc077cc3f2d2a14280':
++        raise ValueError('Face camera window patch requires the CYG1 FaceService library')
++
++    # Current vendor NDK camera outputs take ANativeWindow*, not the old
++    # HIDL native_handle_t*. SurfaceManager only stores this borrowed pointer;
++    # AImageReader owns its lifetime in both APIs. Preserve LIBMEDIANDK version.
++    old = b'AImageReader_getWindowNativeHandle\0'
++    new = b'AImageReader_getWindow\0'
++    if contents.count(old) != 1:
++        raise ValueError('Expected one CYG1 image reader window import')
++    contents = bytearray(contents.replace(old, new.ljust(len(old), b'\0')))
++    # CYG1 uses secure camera 4 and sends its buffers to the face TA. AOSP's
++    # camera path leaves this stream unprotected in the captured logs. Request
++    # protected buffers instead of CPU_READ_OFTEN, so gralloc allocates from
++    # the camera-protected display heap rather than the scattered system heap.
++    # AImageClient::init: mov w8, #3 -> mov w8, #0x4000.
++    offset = 0x5f3fc
++    if contents[offset:offset + 4] != bytes.fromhex('68008052'):
++        raise ValueError('Unexpected CYG1 face image reader usage instruction')
++    contents[offset:offset + 4] = bytes.fromhex('08008852')
++
++    # renderFrame calls fillBuffer through its PLT. Redirect that one function
++    # to a current-ABI shim that respects the lockYCbCr planes and CYG1 UV order.
++    # The replacement is an import; the original code is no longer referenced.
++    old_symbol = b'_ZN7android18FaceDisplayManager10fillBufferER13android_ycbcrRNS_7BufInfoE'
++    new_symbol = b'gts9u_face_preview_fill'
++    if contents[:6] != b'\x7fELF\x02\x01':
++        raise ValueError('Expected little-endian ELF64 FaceService')
++    section_offset = unpack_from('<Q', contents, 0x28)[0]
++    section_size, section_count = unpack_from('<HH', contents, 0x3a)
++    sections = [unpack_from('<IIQQQQIIQQ', contents, section_offset + i * section_size)
++                for i in range(section_count)]
++    patched = 0
++    for section in sections:
++        if section[1] != 11:  # SHT_DYNSYM
++            continue
++        strings = sections[section[6]]
++        for entry in range(section[4], section[4] + section[5], section[9]):
++            name, info, other, index, value, size = unpack_from('<IBBHQQ', contents, entry)
++            position = strings[4] + name
++            end = contents.index(0, position)
++            if contents[position:end] != old_symbol:
++                continue
++            if value != 0x528e4 or size != 416 or index == 0 or info != 0x12:
++                raise ValueError('Unexpected CYG1 fillBuffer symbol')
++            contents[position:end + 1] = new_symbol.ljust(end + 1 - position, b'\0')
++            pack_into('<IBBHQQ', contents, entry, name, info, other, 0, 0, 0)
++            patched += 1
++    if patched != 1:
++        raise ValueError('Expected one CYG1 preview fillBuffer symbol')
++    path.write_bytes(contents)
++
++
++blob_fixups: blob_fixups_user_type = {
++    'vendor/bin/hw/vendor.samsung.hardware.biometrics.face-service': blob_fixup()
++        .call(fix_face_preview, need_tmp_dir=False)
++        .add_needed('libgts9u_face_preview.so'),
++    # CYG1 FaceService uses the older AHandler layout from VNDK 33.
++    'vendor/lib64/libFaceService.so': blob_fixup()
++        .call(fix_face_camera_window, need_tmp_dir=False)
++        .replace_needed('libstagefright_foundation.so', 'libstagefright_foundation_vendor.so')
++        .add_needed('libgts9u_face_preview.so'),
++    'vendor/lib64/libsfp_teegw.so': blob_fixup()
++        .add_needed('libion_shim.so'),
++}
++
+ module = ExtractUtilsModule(
+     'gts9uwifi',
+     'samsung',
++    blob_fixups=blob_fixups,
+     lib_fixups=lib_fixups,
+     namespace_imports=namespace_imports,
+ )
+diff --git a/init/fstab.qcom b/init/fstab.qcom
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e80a0250fd84c1685ae5fd591086f7c96c85446
+--- /dev/null
++++ b/init/fstab.qcom
+@@ -0,0 +1,70 @@
++# Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted (subject to the limitations in the
++# disclaimer below) provided that the following conditions are met:
++#
++#    * Redistributions of source code must retain the above copyright
++#      notice, this list of conditions and the following disclaimer.
++#
++#    * Redistributions in binary form must reproduce the above
++#      copyright notice, this list of conditions and the following
++#      disclaimer in the documentation and/or other materials provided
++#      with the distribution.
++#
++#    * Neither the name of The Linux Foundation nor the names of its
++#      contributors may be used to endorse or promote products derived
++#      from this software without specific prior written permission.
++#
++# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE
++# GRANTED BY THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT
++# HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
++# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
++# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
++# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
++# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
++# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++# Android fstab file.
++# The filesystem that contains the filesystem checker binary (typically /system) cannot
++# specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
++
++#<src>                                                 <mnt_point>            <type>  <mnt_flags and options>                            <fs_mgr_flags>
++system                                                  /system                ext4    ro                                                   avb=vbmeta_system,wait,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey:/avb/t-gsi.avbpubkey
++system_ext                                              /system_ext            ext4    ro                                                   avb=vbmeta_system,wait,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey:/avb/t-gsi.avbpubkey
++product                                                 /product               ext4    ro                                                   avb,wait,logical,first_stage_mount
++vendor                                                  /vendor                ext4    ro                                                   avb,wait,logical,first_stage_mount
++vendor_dlkm                                             /vendor_dlkm           ext4    ro                                                   avb,wait,logical,first_stage_mount
++system_dlkm                                             /system_dlkm           ext4    ro                                                   avb,wait,logical,first_stage_mount
++odm                                                     /odm                   ext4    ro                                                   avb,wait,logical,first_stage_mount
++/dev/block/bootdevice/by-name/boot                      /boot                  emmc    defaults                                             defaults
++/dev/block/bootdevice/by-name/init_boot                 /init_boot             emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/vendor_boot               /vendor_boot           emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/recovery                  /recovery              emmc    defaults                                             defaults
++/dev/block/by-name/metadata                             /metadata              ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic,sync    wait,check,formattable,wrappedkey,first_stage_mount
++/dev/block/bootdevice/by-name/userdata                  /data                  f2fs    noatime,nosuid,nodev,discard,usrquota,grpquota,fsync_mode=nobarrier,reserve_root=32768,resgid=5678,whint_mode=fs-based,inlinecrypt    latemount,wait,check,formattable,quota,reservedsize=128M,sysfs_path=/sys/devices/platform/soc/1d84000.ufshc,checkpoint=fs,fscompress,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0,metadata_encryption=aes-256-xts:wrappedkey_v0,keydirectory=/metadata/vold/metadata_encryption
++/dev/block/bootdevice/by-name/cache                     /cache                 ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic         wait,check
++/dev/block/bootdevice/by-name/persist                   /mnt/vendor/persist    ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic         wait,check
++/dev/block/bootdevice/by-name/misc                      /misc                  emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/apnhlos                   /vendor/firmware_mnt   vfat    ro,context=u:object_r:firmware_file:s0,shortname=lower,uid=0,gid=1000,dmask=227,fmask=337      wait
++/dev/block/bootdevice/by-name/modem                     /vendor/firmware-modem vfat    ro,shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337,context=u:object_r:firmware_file:s0   wait
++/dev/block/bootdevice/by-name/efs                       /mnt/vendor/efs        ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic        wait,check
++/dev/block/bootdevice/by-name/sec_efs                   /efs                   ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic        wait,check
++/dev/block/bootdevice/by-name/dsp                       /vendor/dsp            ext4    ro,nosuid,nodev,barrier=1                            wait
++/dev/block/bootdevice/by-name/carrier                   /carrier               ext4    noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic        defaults,nofail,check
++/dev/block/bootdevice/by-name/abl                       /abl                   emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/tz                        /tz                    emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/hyp                       /hyp                   emmc    defaults                                             defaults,first_stage_mount
++/dev/block/bootdevice/by-name/xbl                       /xbl                   emmc    defaults                                             defaults,first_stage_mount
++
++/devices/platform/soc/*.ssusb/*.dwc3/xhci-hcd.*.auto*   /storage/usbotg        vfat    nosuid,nodev                                         wait,voldmanaged=usbotg:auto
++/devices/platform/soc/8804000.sdhci/mmc_host*           auto                   vfat    defaults                                             voldmanaged=sdcard:auto
++
++#CSC
++/dev/block/platform/soc/1d84000.ufshc/by-name/prism     /prism                 ext4    ro,barrier=1                                         avb,nofail,first_stage_mount
++/dev/block/platform/soc/1d84000.ufshc/by-name/optics    /optics                ext4    ro,barrier=1                                         avb,nofail,first_stage_mount
+diff --git a/libshims/face_preview/Android.bp b/libshims/face_preview/Android.bp
+new file mode 100644
+index 0000000000000000000000000000000000000000..95659fc999e9b6399a8493a30c787b7d561ec68e
+--- /dev/null
++++ b/libshims/face_preview/Android.bp
+@@ -0,0 +1,20 @@
++//
++// SPDX-License-Identifier: Apache-2.0
++//
++
++cc_library_shared {
++    name: "libgts9u_face_preview",
++    vendor: true,
++    compile_multilib: "64",
++    srcs: ["FacePreview.cpp"],
++    header_libs: ["libcutils_headers"],
++    shared_libs: [
++        "android.hardware.graphics.bufferqueue@1.0",
++        "android.hidl.token@1.0-utils",
++        "libbinder",
++        "libgui_vendor",
++        "libhidlbase",
++        "liblog",
++        "libutils",
++    ],
++}
+diff --git a/libshims/face_preview/FacePreview.cpp b/libshims/face_preview/FacePreview.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..2af57965a8824ff54d37d1c3b7b80bd231ee613e
+--- /dev/null
++++ b/libshims/face_preview/FacePreview.cpp
+@@ -0,0 +1,121 @@
++// SPDX-License-Identifier: Apache-2.0
++
++#define LOG_TAG "Gts9uFacePreview"
++
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++
++#include <system/graphics.h>
++
++#include <cutils/native_handle.h>
++#include <gui/Surface.h>
++#include <gui/bufferqueue/1.0/H2BGraphicBufferProducer.h>
++#include <hidl/HybridInterface.h>
++#include <log/log.h>
++
++namespace {
++using android::HalToken;
++using android::sp;
++using android::Surface;
++using android::hardware::graphics::bufferqueue::V1_0::IGraphicBufferProducer;
++using android::hardware::graphics::bufferqueue::V1_0::utils::H2BGraphicBufferProducer;
++
++constexpr int kMaxTokenSize = 256;
++}  // namespace
++
++extern "C" ANativeWindow* gts9u_face_preview_window(const void*, const native_handle_t* handle) {
++    if (handle == nullptr) {
++        return nullptr;
++    }
++    if (handle->numFds != 0 || handle->numInts <= 1) {
++        ALOGE("Unexpected face preview handle");
++        return nullptr;
++    }
++
++    // SurfaceToNativeHandleConverter stores the token size followed by the token bytes.
++    const int size = handle->data[0];
++    if (size <= 0 || size > kMaxTokenSize ||
++        (size + sizeof(int) - 1) / sizeof(int) > static_cast<size_t>(handle->numInts - 1)) {
++        ALOGE("Invalid face preview token size");
++        return nullptr;
++    }
++
++    HalToken token;
++    token.resize(size);
++    std::memcpy(token.data(), &handle->data[1], size);
++    auto result = IGraphicBufferProducer::castFrom(android::retrieveHalInterface(token));
++    if (!result.isOk()) {
++        ALOGE("Unable to resolve face preview producer");
++        return nullptr;
++    }
++
++    sp<IGraphicBufferProducer> producer = result;
++    if (producer == nullptr) {
++        ALOGE("Face preview producer is missing");
++        return nullptr;
++    }
++
++    // The caller retains the ANativeWindow, as with the original CYG1 conversion.
++    return new Surface(sp<H2BGraphicBufferProducer>::make(producer), true);
++}
++
++namespace {
++// Offsets are from the SHA1-pinned CYG1 FaceDisplayManager and BufInfo layouts.
++// Read fields without relying on the vendor C++ class definitions or aliasing.
++template <typename T>
++T readField(const void* object, size_t offset) {
++    T value;
++    std::memcpy(&value, static_cast<const uint8_t*>(object) + offset, sizeof(T));
++    return value;
++}
++}  // namespace
++
++extern "C" int gts9u_face_preview_fill(
++        const void* manager, android_ycbcr& output, const void* frame) {
++    if (manager == nullptr || frame == nullptr) {
++        return -2;
++    }
++    const auto begin = readField<uintptr_t>(manager, 0xa8);
++    const auto end = readField<uintptr_t>(manager, 0xb0);
++    const auto width = readField<uint32_t>(manager, 0xc4);
++    const auto height = readField<uint32_t>(manager, 0xc8);
++    const auto stride = readField<uint32_t>(frame, 0x20);
++    const auto sliceHeight = readField<uint32_t>(frame, 0x24);
++    const auto frameSize = readField<uint32_t>(frame, 0x30);
++    if (width == 0 || height == 0 || width > 8192 || height > 8192 ||
++        (width & 1) != 0 || (height & 1) != 0 || stride < width ||
++        sliceHeight < height || output.y == nullptr || output.cb == nullptr ||
++        output.cr == nullptr || output.ystride < width ||
++        (output.chroma_step != 1 && output.chroma_step != 2) ||
++        output.cstride < (width / 2 - 1) * output.chroma_step + 1 ||
++        begin == 0 || end < begin) {
++        ALOGE("Invalid face preview buffer layout");
++        return -2;
++    }
++    const uint64_t chromaOffset = uint64_t(stride) * sliceHeight;
++    const uint64_t required = chromaOffset + uint64_t(stride) * (height / 2);
++    if (required > frameSize || required > end - begin) {
++        ALOGE("Face preview buffer is shorter than its plane layout");
++        return -2;
++    }
++
++    const auto* input = reinterpret_cast<const uint8_t*>(begin);
++    auto* y = static_cast<uint8_t*>(output.y);
++    auto* cb = static_cast<uint8_t*>(output.cb);
++    auto* cr = static_cast<uint8_t*>(output.cr);
++    for (uint32_t row = 0; row < height; ++row) {
++        std::memcpy(y + row * output.ystride, input + uint64_t(row) * stride, width);
++    }
++    // CYG1's protected camera supplies interleaved UV. Write the named planes
++    // from lockYCbCr instead of copying that row into an assumed NV21 VU plane.
++    for (uint32_t row = 0; row < height / 2; ++row) {
++        const auto* uv = input + chromaOffset + uint64_t(row) * stride;
++        for (uint32_t column = 0; column < width / 2; ++column) {
++            const size_t offset = row * output.cstride + column * output.chroma_step;
++            cb[offset] = uv[column * 2];
++            cr[offset] = uv[column * 2 + 1];
++        }
++    }
++    return 0;
++}
+diff --git a/lineage_gts9uwifi.mk b/lineage_gts9uwifi.mk
+index 59aba3d932d28d21197cd4d11c5b4d90d24c7e85..122f60631c772b58f95ca2b1cda017c78aa4afe1 100644
+--- a/lineage_gts9uwifi.mk
++++ b/lineage_gts9uwifi.mk
+@@ -4,6 +4,10 @@
+ # SPDX-License-Identifier: Apache-2.0
+ #
+ 
++# Retain eng debugging while enabling normal ART precompilation and dexopt.
++# This must precede full_base -> runtime_libart.mk.
++OVERRIDE_DISABLE_DEXOPT_ALL := false
++
+ # Inherit from those products. Most specific first.
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+@@ -11,6 +15,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+ # Inherit from gts9uwifi device
+ $(call inherit-product, device/samsung/gts9uwifi/device.mk)
+ 
++# Keep the version shown in Settings free of the device codename.
++LINEAGE_VERSION_SHOW_DEVICE := false
++
+ # Inherit some common Lineage stuff.
+ $(call inherit-product, vendor/lineage/config/common_full_tablet_wifionly.mk)
+ 
+@@ -24,13 +31,16 @@ PRODUCT_MANUFACTURER := samsung
+ TARGET_HAVE_SPEN := true
+ 
+ # GMS
+-WITH_GMS := true
++WITH_GMS := false
+ WITH_GMS_COMMS_SUITE := false
+ 
+ PRODUCT_GMS_CLIENTID_BASE := android-samsung-ss
+ 
++# Generate the fingerprint from this build; show only its ID in Settings.
+ PRODUCT_BUILD_PROP_OVERRIDES += \
+-    BuildDesc=$(call normalize-path-list,"gts9uwifixx-user 15 AP3A.240905.015.A2 X910XXS5CYG1 release-keys") \
+-    BuildFingerprint=samsung/gts9uwifixx/gts9uwifi:15/AP3A.240905.015.A2/X910XXS5CYG1:user/release-keys \
++    LineageDesc=$(BUILD_ID) \
+     DeviceProduct=gts9uwifixx \
+     SystemName=gts9uwifixx
++
++# Compile system-server code ahead of time for predictable startup latency.
++PRODUCT_SYSTEM_SERVER_COMPILER_FILTER := speed
+diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..66972effc735be95649c675f85949804ebb7d7c8
+--- /dev/null
++++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- ActivityInfo.SCREEN_ORIENTATION_FULL_USER. -->
++    <integer name="config_face_enroll_intro_orientation">13</integer>
++    <integer name="config_face_enroll_capture_orientation">13</integer>
++</resources>
+diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..da3e0b78c4bdc22f18c3d48db1f5b56b7a1e3b6a
+--- /dev/null
++++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <bool name="config_face_enroll_samsung_pose_guidance">true</bool>
++</resources>
+diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..909b31b77954e86df47a59e56655f28eaf98de06
+--- /dev/null
++++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- CYG1 face HAL's actual camera stream dimensions, before its sensor transform. -->
++    <integer name="face_preview_width">640</integer>
++    <integer name="face_preview_height">480</integer>
++</resources>
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index 90e5a62edc941344b1ce3f1f5ca668e104067679..faa1a07d0dbc02678f9b4d44409ad651d99ff327 100644
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -24,6 +24,12 @@
+     <bool name="config_screen_off_udfps_enabled">true</bool>
+     <bool name="config_screen_off_udfps_default_on">true</bool>
+ 
++    <bool name="config_windowBrightnessUsesSystemSlider">true</bool>
++
++    <!-- Let tablet users choose fullscreen for individual portrait apps. -->
++    <bool name="config_appCompatUserAppAspectRatioSettingsIsEnabled">true</bool>
++    <bool name="config_appCompatUserAppAspectRatioFullscreenIsEnabled">true</bool>
++
+     <!-- Minimum screen brightness setting allowed by power manager.
+          -2 is invalid so setting will resort to int value specified above.
+          Set this to 0.0 to allow screen to go to minimal brightness.
+@@ -39,7 +45,7 @@
+     <!-- Default screen brightness setting set.
+          -2 is invalid so setting will resort to int value specified above.
+          Must be in the range specified by minimum and maximum. -->
+-    <item name="config_screenBrightnessSettingDefaultFloat" type="dimen">0.5019608</item>
++    <item name="config_screenBrightnessSettingDefaultFloat" type="dimen">0.23400366</item>
+ 
+     <!-- Screen brightness used to dim the screen when the user activity
+          timeout expires.  May be less than the minimum allowed brightness setting
+@@ -124,936 +130,6 @@
+         <item>750</item>
+     </integer-array>
+ 
+-    <!-- An array describing the screen's backlight values corresponding to the brightness
+-         values in the config_screenBrightnessNits array.
+-
+-         This array should be equal in size to config_screenBrightnessBacklight. -->
+-    <integer-array name="config_screenBrightnessBacklight">
+-        <item>0</item>
+-        <item>1</item>
+-        <item>2</item>
+-        <item>3</item>
+-        <item>4</item>
+-        <item>5</item>
+-        <item>6</item>
+-        <item>7</item>
+-        <item>8</item>
+-        <item>9</item>
+-        <item>10</item>
+-        <item>11</item>
+-        <item>12</item>
+-        <item>13</item>
+-        <item>14</item>
+-        <item>15</item>
+-        <item>16</item>
+-        <item>17</item>
+-        <item>18</item>
+-        <item>19</item>
+-        <item>20</item>
+-        <item>21</item>
+-        <item>22</item>
+-        <item>23</item>
+-        <item>24</item>
+-        <item>25</item>
+-        <item>26</item>
+-        <item>27</item>
+-        <item>28</item>
+-        <item>29</item>
+-        <item>30</item>
+-        <item>31</item>
+-        <item>32</item>
+-        <item>33</item>
+-        <item>34</item>
+-        <item>35</item>
+-        <item>36</item>
+-        <item>37</item>
+-        <item>38</item>
+-        <item>39</item>
+-        <item>40</item>
+-        <item>41</item>
+-        <item>42</item>
+-        <item>43</item>
+-        <item>44</item>
+-        <item>45</item>
+-        <item>46</item>
+-        <item>47</item>
+-        <item>48</item>
+-        <item>49</item>
+-        <item>50</item>
+-        <item>51</item>
+-        <item>52</item>
+-        <item>53</item>
+-        <item>54</item>
+-        <item>55</item>
+-        <item>56</item>
+-        <item>57</item>
+-        <item>58</item>
+-        <item>59</item>
+-        <item>60</item>
+-        <item>61</item>
+-        <item>62</item>
+-        <item>63</item>
+-        <item>64</item>
+-        <item>65</item>
+-        <item>66</item>
+-        <item>67</item>
+-        <item>68</item>
+-        <item>69</item>
+-        <item>70</item>
+-        <item>71</item>
+-        <item>72</item>
+-        <item>73</item>
+-        <item>74</item>
+-        <item>75</item>
+-        <item>76</item>
+-        <item>77</item>
+-        <item>78</item>
+-        <item>79</item>
+-        <item>80</item>
+-        <item>81</item>
+-        <item>82</item>
+-        <item>83</item>
+-        <item>84</item>
+-        <item>85</item>
+-        <item>86</item>
+-        <item>87</item>
+-        <item>88</item>
+-        <item>89</item>
+-        <item>90</item>
+-        <item>91</item>
+-        <item>92</item>
+-        <item>93</item>
+-        <item>94</item>
+-        <item>95</item>
+-        <item>96</item>
+-        <item>97</item>
+-        <item>98</item>
+-        <item>99</item>
+-        <item>100</item>
+-        <item>101</item>
+-        <item>102</item>
+-        <item>103</item>
+-        <item>104</item>
+-        <item>105</item>
+-        <item>106</item>
+-        <item>107</item>
+-        <item>108</item>
+-        <item>109</item>
+-        <item>110</item>
+-        <item>111</item>
+-        <item>112</item>
+-        <item>113</item>
+-        <item>114</item>
+-        <item>115</item>
+-        <item>116</item>
+-        <item>117</item>
+-        <item>118</item>
+-        <item>119</item>
+-        <item>120</item>
+-        <item>121</item>
+-        <item>122</item>
+-        <item>123</item>
+-        <item>124</item>
+-        <item>125</item>
+-        <item>126</item>
+-        <item>127</item>
+-        <item>128</item>
+-        <item>129</item>
+-        <item>130</item>
+-        <item>131</item>
+-        <item>132</item>
+-        <item>133</item>
+-        <item>134</item>
+-        <item>135</item>
+-        <item>136</item>
+-        <item>137</item>
+-        <item>138</item>
+-        <item>139</item>
+-        <item>140</item>
+-        <item>141</item>
+-        <item>142</item>
+-        <item>143</item>
+-        <item>144</item>
+-        <item>145</item>
+-        <item>146</item>
+-        <item>147</item>
+-        <item>148</item>
+-        <item>149</item>
+-        <item>150</item>
+-        <item>151</item>
+-        <item>152</item>
+-        <item>153</item>
+-        <item>154</item>
+-        <item>155</item>
+-        <item>156</item>
+-        <item>157</item>
+-        <item>158</item>
+-        <item>159</item>
+-        <item>160</item>
+-        <item>161</item>
+-        <item>162</item>
+-        <item>163</item>
+-        <item>164</item>
+-        <item>165</item>
+-        <item>166</item>
+-        <item>167</item>
+-        <item>168</item>
+-        <item>169</item>
+-        <item>170</item>
+-        <item>171</item>
+-        <item>172</item>
+-        <item>173</item>
+-        <item>174</item>
+-        <item>175</item>
+-        <item>176</item>
+-        <item>177</item>
+-        <item>178</item>
+-        <item>179</item>
+-        <item>180</item>
+-        <item>181</item>
+-        <item>182</item>
+-        <item>183</item>
+-        <item>184</item>
+-        <item>185</item>
+-        <item>186</item>
+-        <item>187</item>
+-        <item>188</item>
+-        <item>189</item>
+-        <item>190</item>
+-        <item>191</item>
+-        <item>192</item>
+-        <item>193</item>
+-        <item>194</item>
+-        <item>195</item>
+-        <item>196</item>
+-        <item>197</item>
+-        <item>198</item>
+-        <item>199</item>
+-        <item>200</item>
+-        <item>201</item>
+-        <item>202</item>
+-        <item>203</item>
+-        <item>204</item>
+-        <item>205</item>
+-        <item>206</item>
+-        <item>207</item>
+-        <item>208</item>
+-        <item>209</item>
+-        <item>210</item>
+-        <item>211</item>
+-        <item>212</item>
+-        <item>213</item>
+-        <item>214</item>
+-        <item>215</item>
+-        <item>216</item>
+-        <item>217</item>
+-        <item>218</item>
+-        <item>219</item>
+-        <item>220</item>
+-        <item>221</item>
+-        <item>222</item>
+-        <item>223</item>
+-        <item>224</item>
+-        <item>225</item>
+-        <item>226</item>
+-        <item>227</item>
+-        <item>228</item>
+-        <item>229</item>
+-        <item>230</item>
+-        <item>231</item>
+-        <item>232</item>
+-        <item>233</item>
+-        <item>234</item>
+-        <item>235</item>
+-        <item>236</item>
+-        <item>237</item>
+-        <item>238</item>
+-        <item>239</item>
+-        <item>240</item>
+-        <item>241</item>
+-        <item>242</item>
+-        <item>243</item>
+-        <item>244</item>
+-        <item>245</item>
+-        <item>246</item>
+-        <item>247</item>
+-        <item>248</item>
+-        <item>249</item>
+-        <item>250</item>
+-        <item>251</item>
+-        <item>252</item>
+-        <item>253</item>
+-        <item>254</item>
+-        <item>255</item>
+-        <item>256</item>
+-        <item>257</item>
+-        <item>258</item>
+-        <item>259</item>
+-        <item>260</item>
+-        <item>261</item>
+-        <item>262</item>
+-        <item>263</item>
+-        <item>264</item>
+-        <item>265</item>
+-        <item>266</item>
+-        <item>267</item>
+-        <item>268</item>
+-        <item>269</item>
+-        <item>270</item>
+-        <item>271</item>
+-        <item>272</item>
+-        <item>273</item>
+-        <item>274</item>
+-        <item>275</item>
+-        <item>276</item>
+-        <item>277</item>
+-        <item>278</item>
+-        <item>279</item>
+-        <item>280</item>
+-        <item>281</item>
+-        <item>282</item>
+-        <item>283</item>
+-        <item>284</item>
+-        <item>285</item>
+-        <item>286</item>
+-        <item>287</item>
+-        <item>288</item>
+-        <item>289</item>
+-        <item>290</item>
+-        <item>291</item>
+-        <item>292</item>
+-        <item>293</item>
+-        <item>294</item>
+-        <item>295</item>
+-        <item>296</item>
+-        <item>297</item>
+-        <item>298</item>
+-        <item>299</item>
+-        <item>300</item>
+-        <item>301</item>
+-        <item>302</item>
+-        <item>303</item>
+-        <item>304</item>
+-        <item>305</item>
+-        <item>306</item>
+-        <item>307</item>
+-        <item>308</item>
+-        <item>309</item>
+-        <item>310</item>
+-        <item>311</item>
+-        <item>312</item>
+-        <item>313</item>
+-        <item>314</item>
+-        <item>315</item>
+-        <item>316</item>
+-        <item>317</item>
+-        <item>318</item>
+-        <item>319</item>
+-        <item>320</item>
+-        <item>321</item>
+-        <item>322</item>
+-        <item>323</item>
+-        <item>324</item>
+-        <item>325</item>
+-        <item>326</item>
+-        <item>327</item>
+-        <item>328</item>
+-        <item>329</item>
+-        <item>330</item>
+-        <item>331</item>
+-        <item>332</item>
+-        <item>333</item>
+-        <item>334</item>
+-        <item>335</item>
+-        <item>336</item>
+-        <item>337</item>
+-        <item>338</item>
+-        <item>339</item>
+-        <item>340</item>
+-        <item>341</item>
+-        <item>342</item>
+-        <item>343</item>
+-        <item>344</item>
+-        <item>345</item>
+-        <item>346</item>
+-        <item>347</item>
+-        <item>348</item>
+-        <item>349</item>
+-        <item>350</item>
+-        <item>351</item>
+-        <item>352</item>
+-        <item>353</item>
+-        <item>354</item>
+-        <item>355</item>
+-        <item>356</item>
+-        <item>357</item>
+-        <item>358</item>
+-        <item>359</item>
+-        <item>360</item>
+-        <item>361</item>
+-        <item>362</item>
+-        <item>363</item>
+-        <item>364</item>
+-        <item>365</item>
+-        <item>366</item>
+-        <item>367</item>
+-        <item>368</item>
+-        <item>369</item>
+-        <item>370</item>
+-        <item>371</item>
+-        <item>372</item>
+-        <item>373</item>
+-        <item>374</item>
+-        <item>375</item>
+-        <item>376</item>
+-        <item>377</item>
+-        <item>378</item>
+-        <item>379</item>
+-        <item>380</item>
+-        <item>381</item>
+-        <item>382</item>
+-        <item>383</item>
+-        <item>384</item>
+-        <item>385</item>
+-        <item>386</item>
+-        <item>387</item>
+-        <item>388</item>
+-        <item>389</item>
+-        <item>390</item>
+-        <item>391</item>
+-        <item>392</item>
+-        <item>393</item>
+-        <item>394</item>
+-        <item>395</item>
+-        <item>396</item>
+-        <item>397</item>
+-        <item>398</item>
+-        <item>399</item>
+-        <item>400</item>
+-        <item>401</item>
+-        <item>402</item>
+-        <item>403</item>
+-        <item>404</item>
+-        <item>405</item>
+-        <item>406</item>
+-        <item>407</item>
+-        <item>408</item>
+-        <item>409</item>
+-        <item>410</item>
+-        <item>411</item>
+-        <item>412</item>
+-        <item>413</item>
+-        <item>414</item>
+-        <item>415</item>
+-        <item>416</item>
+-        <item>417</item>
+-        <item>418</item>
+-        <item>419</item>
+-        <item>420</item>
+-        <item>421</item>
+-        <item>422</item>
+-        <item>423</item>
+-        <item>424</item>
+-        <item>425</item>
+-        <item>426</item>
+-        <item>427</item>
+-        <item>428</item>
+-        <item>429</item>
+-        <item>430</item>
+-        <item>431</item>
+-        <item>432</item>
+-        <item>433</item>
+-        <item>434</item>
+-        <item>435</item>
+-        <item>436</item>
+-        <item>437</item>
+-        <item>438</item>
+-        <item>439</item>
+-        <item>440</item>
+-        <item>441</item>
+-        <item>442</item>
+-        <item>443</item>
+-        <item>444</item>
+-        <item>445</item>
+-        <item>446</item>
+-        <item>447</item>
+-        <item>448</item>
+-        <item>449</item>
+-        <item>450</item>
+-        <item>451</item>
+-        <item>452</item>
+-        <item>453</item>
+-        <item>454</item>
+-        <item>455</item>
+-        <item>456</item>
+-    </integer-array>
+-
+-    <!-- An array of floats describing the screen brightness in nits corresponding to the backlight
+-         values in the config_screenBrightnessBacklight array.  On OLED displays these  values
+-         should be measured with an all white image while the display is in the fully on state.
+-         Note that this value should *not* reflect the maximum brightness value for any high
+-         brightness modes but only the maximum brightness value obtainable in a sustainable manner.
+-
+-         This array should be equal in size to config_screenBrightnessBacklight -->
+-    <array name="config_screenBrightnessNits">
+-        <item>2</item>
+-        <item>2.311</item>
+-        <item>2.766</item>
+-        <item>3.297</item>
+-        <item>3.885</item>
+-        <item>4.52</item>
+-        <item>5.194</item>
+-        <item>5.902</item>
+-        <item>6.642</item>
+-        <item>7.41</item>
+-        <item>8.204</item>
+-        <item>9.022</item>
+-        <item>9.863</item>
+-        <item>10.726</item>
+-        <item>11.608</item>
+-        <item>12.51</item>
+-        <item>13.43</item>
+-        <item>14.367</item>
+-        <item>15.321</item>
+-        <item>16.291</item>
+-        <item>17.276</item>
+-        <item>18.276</item>
+-        <item>19.291</item>
+-        <item>20.32</item>
+-        <item>21.362</item>
+-        <item>22.417</item>
+-        <item>23.485</item>
+-        <item>24.566</item>
+-        <item>25.658</item>
+-        <item>26.762</item>
+-        <item>27.878</item>
+-        <item>29.005</item>
+-        <item>30.143</item>
+-        <item>31.292</item>
+-        <item>32.451</item>
+-        <item>33.62</item>
+-        <item>34.8</item>
+-        <item>35.989</item>
+-        <item>37.188</item>
+-        <item>38.396</item>
+-        <item>39.614</item>
+-        <item>40.841</item>
+-        <item>42.077</item>
+-        <item>43.322</item>
+-        <item>44.576</item>
+-        <item>45.838</item>
+-        <item>47.109</item>
+-        <item>48.388</item>
+-        <item>49.675</item>
+-        <item>50.97</item>
+-        <item>52.273</item>
+-        <item>53.584</item>
+-        <item>54.903</item>
+-        <item>56.229</item>
+-        <item>57.563</item>
+-        <item>58.904</item>
+-        <item>60.253</item>
+-        <item>61.609</item>
+-        <item>62.972</item>
+-        <item>64.342</item>
+-        <item>65.719</item>
+-        <item>67.103</item>
+-        <item>68.494</item>
+-        <item>69.892</item>
+-        <item>71.296</item>
+-        <item>72.707</item>
+-        <item>74.124</item>
+-        <item>75.548</item>
+-        <item>76.978</item>
+-        <item>78.415</item>
+-        <item>79.858</item>
+-        <item>81.307</item>
+-        <item>82.762</item>
+-        <item>84.223</item>
+-        <item>85.69</item>
+-        <item>87.164</item>
+-        <item>88.643</item>
+-        <item>90.128</item>
+-        <item>91.618</item>
+-        <item>93.115</item>
+-        <item>94.617</item>
+-        <item>96.125</item>
+-        <item>97.638</item>
+-        <item>99.157</item>
+-        <item>100.682</item>
+-        <item>102.212</item>
+-        <item>103.747</item>
+-        <item>105.288</item>
+-        <item>106.834</item>
+-        <item>108.385</item>
+-        <item>109.942</item>
+-        <item>111.503</item>
+-        <item>113.07</item>
+-        <item>114.642</item>
+-        <item>116.22</item>
+-        <item>117.802</item>
+-        <item>119.389</item>
+-        <item>120.981</item>
+-        <item>122.578</item>
+-        <item>124.18</item>
+-        <item>125.787</item>
+-        <item>127.398</item>
+-        <item>129.015</item>
+-        <item>130.636</item>
+-        <item>132.262</item>
+-        <item>133.893</item>
+-        <item>135.528</item>
+-        <item>137.168</item>
+-        <item>138.812</item>
+-        <item>140.461</item>
+-        <item>142.115</item>
+-        <item>143.773</item>
+-        <item>145.436</item>
+-        <item>147.103</item>
+-        <item>148.774</item>
+-        <item>150.45</item>
+-        <item>152.131</item>
+-        <item>153.815</item>
+-        <item>155.504</item>
+-        <item>157.198</item>
+-        <item>158.895</item>
+-        <item>160.597</item>
+-        <item>162.303</item>
+-        <item>164.013</item>
+-        <item>165.728</item>
+-        <item>167.446</item>
+-        <item>169.169</item>
+-        <item>170.896</item>
+-        <item>172.627</item>
+-        <item>174.362</item>
+-        <item>176.101</item>
+-        <item>177.844</item>
+-        <item>179.591</item>
+-        <item>181.342</item>
+-        <item>183.097</item>
+-        <item>184.855</item>
+-        <item>186.618</item>
+-        <item>188.385</item>
+-        <item>190.155</item>
+-        <item>191.93</item>
+-        <item>193.708</item>
+-        <item>195.49</item>
+-        <item>197.276</item>
+-        <item>199.066</item>
+-        <item>200.859</item>
+-        <item>202.656</item>
+-        <item>204.457</item>
+-        <item>206.262</item>
+-        <item>208.07</item>
+-        <item>209.882</item>
+-        <item>211.697</item>
+-        <item>213.516</item>
+-        <item>215.339</item>
+-        <item>217.166</item>
+-        <item>218.996</item>
+-        <item>220.829</item>
+-        <item>222.666</item>
+-        <item>224.507</item>
+-        <item>226.351</item>
+-        <item>228.199</item>
+-        <item>230.05</item>
+-        <item>231.905</item>
+-        <item>233.763</item>
+-        <item>235.624</item>
+-        <item>237.489</item>
+-        <item>239.358</item>
+-        <item>241.229</item>
+-        <item>243.105</item>
+-        <item>244.983</item>
+-        <item>246.865</item>
+-        <item>248.75</item>
+-        <item>250.639</item>
+-        <item>252.531</item>
+-        <item>254.426</item>
+-        <item>256.324</item>
+-        <item>258.226</item>
+-        <item>260.131</item>
+-        <item>262.039</item>
+-        <item>263.951</item>
+-        <item>265.866</item>
+-        <item>267.784</item>
+-        <item>269.705</item>
+-        <item>271.629</item>
+-        <item>273.557</item>
+-        <item>275.487</item>
+-        <item>277.421</item>
+-        <item>279.358</item>
+-        <item>281.298</item>
+-        <item>283.241</item>
+-        <item>285.188</item>
+-        <item>287.137</item>
+-        <item>289.09</item>
+-        <item>291.045</item>
+-        <item>293.004</item>
+-        <item>294.965</item>
+-        <item>296.93</item>
+-        <item>298.898</item>
+-        <item>300.868</item>
+-        <item>302.842</item>
+-        <item>304.819</item>
+-        <item>306.799</item>
+-        <item>308.781</item>
+-        <item>310.767</item>
+-        <item>312.756</item>
+-        <item>314.747</item>
+-        <item>316.742</item>
+-        <item>318.739</item>
+-        <item>320.739</item>
+-        <item>322.742</item>
+-        <item>324.748</item>
+-        <item>326.757</item>
+-        <item>328.769</item>
+-        <item>330.784</item>
+-        <item>332.802</item>
+-        <item>334.822</item>
+-        <item>336.845</item>
+-        <item>338.871</item>
+-        <item>340.9</item>
+-        <item>342.932</item>
+-        <item>344.966</item>
+-        <item>347.004</item>
+-        <item>349.044</item>
+-        <item>351.086</item>
+-        <item>353.132</item>
+-        <item>355.18</item>
+-        <item>357.231</item>
+-        <item>359.285</item>
+-        <item>361.342</item>
+-        <item>363.401</item>
+-        <item>365.463</item>
+-        <item>367.528</item>
+-        <item>369.595</item>
+-        <item>371.665</item>
+-        <item>373.738</item>
+-        <item>375.813</item>
+-        <item>377.891</item>
+-        <item>379.972</item>
+-        <item>382.055</item>
+-        <item>384.141</item>
+-        <item>386.23</item>
+-        <item>388.321</item>
+-        <item>390.415</item>
+-        <item>392.512</item>
+-        <item>394.611</item>
+-        <item>396.712</item>
+-        <item>398.817</item>
+-        <item>400.924</item>
+-        <item>403.033</item>
+-        <item>405.145</item>
+-        <item>407.259</item>
+-        <item>409.377</item>
+-        <item>411.496</item>
+-        <item>413.618</item>
+-        <item>415.743</item>
+-        <item>417.87</item>
+-        <item>420</item>
+-        <item>421.65</item>
+-        <item>423.29</item>
+-        <item>424.94</item>
+-        <item>426.59</item>
+-        <item>428.24</item>
+-        <item>429.88</item>
+-        <item>431.53</item>
+-        <item>433.18</item>
+-        <item>434.82</item>
+-        <item>436.47</item>
+-        <item>438.12</item>
+-        <item>439.76</item>
+-        <item>441.41</item>
+-        <item>443.06</item>
+-        <item>444.71</item>
+-        <item>446.35</item>
+-        <item>448</item>
+-        <item>449.65</item>
+-        <item>451.29</item>
+-        <item>452.94</item>
+-        <item>454.59</item>
+-        <item>456.24</item>
+-        <item>457.88</item>
+-        <item>459.53</item>
+-        <item>461.18</item>
+-        <item>462.82</item>
+-        <item>464.47</item>
+-        <item>466.12</item>
+-        <item>467.76</item>
+-        <item>469.41</item>
+-        <item>471.06</item>
+-        <item>472.71</item>
+-        <item>474.35</item>
+-        <item>476</item>
+-        <item>477.65</item>
+-        <item>479.29</item>
+-        <item>480.94</item>
+-        <item>482.59</item>
+-        <item>484.24</item>
+-        <item>485.88</item>
+-        <item>487.53</item>
+-        <item>489.18</item>
+-        <item>490.82</item>
+-        <item>492.47</item>
+-        <item>494.12</item>
+-        <item>495.76</item>
+-        <item>497.41</item>
+-        <item>499.06</item>
+-        <item>500.71</item>
+-        <item>502.35</item>
+-        <item>504</item>
+-        <item>505.65</item>
+-        <item>507.29</item>
+-        <item>508.94</item>
+-        <item>510.59</item>
+-        <item>512.24</item>
+-        <item>513.88</item>
+-        <item>515.53</item>
+-        <item>517.18</item>
+-        <item>518.82</item>
+-        <item>520.47</item>
+-        <item>522.12</item>
+-        <item>523.76</item>
+-        <item>525.41</item>
+-        <item>527.06</item>
+-        <item>528.71</item>
+-        <item>530.35</item>
+-        <item>532</item>
+-        <item>533.65</item>
+-        <item>535.29</item>
+-        <item>536.94</item>
+-        <item>538.59</item>
+-        <item>540.24</item>
+-        <item>541.88</item>
+-        <item>543.53</item>
+-        <item>545.18</item>
+-        <item>546.82</item>
+-        <item>548.47</item>
+-        <item>550.12</item>
+-        <item>551.76</item>
+-        <item>553.41</item>
+-        <item>555.06</item>
+-        <item>556.71</item>
+-        <item>558.35</item>
+-        <item>560</item>
+-        <item>561.65</item>
+-        <item>563.29</item>
+-        <item>564.94</item>
+-        <item>566.59</item>
+-        <item>568.24</item>
+-        <item>569.88</item>
+-        <item>571.53</item>
+-        <item>573.18</item>
+-        <item>574.82</item>
+-        <item>576.47</item>
+-        <item>578.12</item>
+-        <item>579.76</item>
+-        <item>581.41</item>
+-        <item>583.06</item>
+-        <item>584.71</item>
+-        <item>586.35</item>
+-        <item>588</item>
+-        <item>589.65</item>
+-        <item>591.29</item>
+-        <item>592.94</item>
+-        <item>594.59</item>
+-        <item>596.24</item>
+-        <item>597.88</item>
+-        <item>600</item>
+-        <item>601.18</item>
+-        <item>602.82</item>
+-        <item>604.47</item>
+-        <item>606.12</item>
+-        <item>607.76</item>
+-        <item>609.41</item>
+-        <item>611.06</item>
+-        <item>612.71</item>
+-        <item>614.35</item>
+-        <item>616</item>
+-        <item>617.65</item>
+-        <item>619.29</item>
+-        <item>620.94</item>
+-        <item>622.59</item>
+-        <item>624.24</item>
+-        <item>625.88</item>
+-        <item>627.53</item>
+-        <item>629.18</item>
+-        <item>630.82</item>
+-        <item>632.47</item>
+-        <item>634.12</item>
+-        <item>635.76</item>
+-        <item>637.41</item>
+-        <item>639.06</item>
+-        <item>640.71</item>
+-        <item>642.35</item>
+-        <item>644</item>
+-        <item>645.65</item>
+-        <item>647.29</item>
+-        <item>648.94</item>
+-        <item>650.59</item>
+-        <item>652.24</item>
+-        <item>653.88</item>
+-        <item>655.53</item>
+-        <item>657.18</item>
+-        <item>658.82</item>
+-        <item>660.47</item>
+-        <item>662.12</item>
+-        <item>663.76</item>
+-        <item>665.41</item>
+-        <item>667.06</item>
+-        <item>668.71</item>
+-        <item>670.35</item>
+-        <item>672</item>
+-        <item>673.65</item>
+-        <item>675.29</item>
+-        <item>676.94</item>
+-        <item>678.59</item>
+-        <item>680.24</item>
+-        <item>681.88</item>
+-        <item>683.53</item>
+-        <item>685.18</item>
+-        <item>686.82</item>
+-        <item>688.47</item>
+-        <item>690.12</item>
+-        <item>691.76</item>
+-        <item>693.41</item>
+-        <item>695.06</item>
+-        <item>696.71</item>
+-        <item>698.35</item>
+-        <item>700</item>
+-        <item>701.65</item>
+-        <item>703.29</item>
+-        <item>704.94</item>
+-        <item>706.59</item>
+-        <item>708.24</item>
+-        <item>709.88</item>
+-        <item>711.53</item>
+-        <item>713.18</item>
+-        <item>714.82</item>
+-        <item>716.47</item>
+-        <item>718.12</item>
+-        <item>719.76</item>
+-        <item>721.41</item>
+-        <item>723.06</item>
+-        <item>724.71</item>
+-        <item>726.35</item>
+-        <item>728</item>
+-        <item>729.65</item>
+-        <item>731.29</item>
+-        <item>732.94</item>
+-        <item>734.59</item>
+-        <item>736.24</item>
+-        <item>737.88</item>
+-        <item>739.53</item>
+-        <item>741.18</item>
+-        <item>742.82</item>
+-        <item>744.47</item>
+-        <item>746.12</item>
+-        <item>747.76</item>
+-        <item>749.41</item>
+-        <item>750</item>
+-    </array>
+ 
+     <!-- Indicates whether the system wide captions service should also support
+          call captioning.
+@@ -1120,4 +196,6 @@
+ 
+     <!-- If true, the display will be shifted around in ambient mode. -->
+     <bool name="config_enableBurnInProtection">true</bool>
++    <!-- CYG1 secure front camera's sensor angle. -->
++    <integer name="config_faceAuthVendorSensorOrientation">270</integer>
+ </resources>
+diff --git a/overlay/frameworks/base/core/res/res/xml/power_profile.xml b/overlay/frameworks/base/core/res/res/xml/power_profile.xml
+index 415bf325a05ae6e857a89d60e91cc136bfffdbbd..e5ce2a1cca5793824c3a30038f589a2bd3ac2885 100644
+--- a/overlay/frameworks/base/core/res/res/xml/power_profile.xml
++++ b/overlay/frameworks/base/core/res/res/xml/power_profile.xml
+@@ -159,8 +159,8 @@
+     </array>
+     <item name="cpu.suspend">7.7</item>
+     <item name="cpu.idle">19.6</item>
+-    <item name="battery.capacity">8160</item>
+-    <item name="battery.typical.capacity">8400</item>
++    <item name="battery.capacity">10880</item>
++    <item name="battery.typical.capacity">11200</item>
+     <item name="bluetooth.controller.idle">3.5</item>
+     <item name="bluetooth.controller.rx">12</item>
+     <item name="bluetooth.controller.tx">33</item>
+diff --git a/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml b/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..5db3a4ac9acb41381b9f61f9ccf9cab16b037a2e
+--- /dev/null
++++ b/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<resources>
++    <dimen name="desktop_mode_app_handle_vertical_offset">8dp</dimen>
++    <!-- Keep the 100dp touch target. Visible widths: normal 40dp, hover 48dp, pressed 34dp. -->
++    <dimen name="desktop_mode_fullscreen_decor_caption_horizontal_padding_default">30dp</dimen>
++    <dimen name="desktop_mode_fullscreen_decor_caption_horizontal_padding_hovered">26dp</dimen>
++    <dimen name="desktop_mode_fullscreen_decor_caption_horizontal_padding_touched">33dp</dimen>
++</resources>
+diff --git a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml b/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
+index cf86bc21d5d61c110b3edb4adf227092a3d4802a..dbfc25d02e1612dd43c7035807d4f6a0b01f5e31 100644
+--- a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
++++ b/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
+@@ -18,7 +18,7 @@
+ -->
+ <resources>
+     <!-- Default for Settings.Global.DEVICE_NAME $1=MODEL-->
+-    <string name="def_device_name_simple">Galaxy Tab S9 Ultra Wifi</string>
++    <string name="def_device_name_simple">Galaxy Tab S9 Ultra</string>
+ 
+     <!-- Enable auto rotation switching by default -->
+     <bool name="def_accelerometer_rotation">true</bool>
+diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
+index 4fd2484ebf8761a1cc2b6a0e7104ea24e5385a21..8f57fb201a5f391ecb6bb47c8b3ec80aabc67c2e 100644
+--- a/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
++++ b/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
+@@ -6,7 +6,15 @@
+ <resources>
+      <!-- Should we vibrate on an icon animation of the shelf. This should only be active if the
+           vibrator is capable of subtle vibrations -->
+-     <bool name="config_vibrateOnIconAnimation">true</bool>
++     <bool name="config_vibrateOnIconAnimation">false</bool>
+      
+      <color name="config_udfpsColor">#ffffffff</color>
++
++    <!-- Default Quick Settings tiles for a newly initialized user. -->
++    <string name="quick_settings_tiles_default" translatable="false">
++        internet,bt,dnd,cast,flashlight,airplane,rotation,wallet,alarm,controls,screenrecord,battery,custom(org.lineageos.dap/.DolbyTile)
++    </string>
++    <string name="quick_settings_tiles_default_split" translatable="false">
++        wifi,bt,cell,cast,dnd,wallet,airplane,rotation,flashlight,battery,alarm,controls,screenrecord,custom(org.lineageos.dap/.DolbyTile)
++    </string>
+ </resources>
+diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..71b3ec8c63159534e7c3744c68e474dca5ceb8ef
+--- /dev/null
++++ b/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- EFFECT_CLICK uses the existing vendor HAL calibration: MEDIUM is about 50 ms. -->
++    <integer name="config_msdlUnlockHapticEffect">0</integer>
++</resources>
+diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..a88b881c5cdccdd2d61e13669835c2b2cf960a8d
+--- /dev/null
++++ b/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml
+@@ -0,0 +1,558 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Copyright (C) 2026 The LineageOS Project. SPDX-License-Identifier: Apache-2.0 -->
++<resources>
++    <bool name="config_udfpsKernelGhbm">true</bool>
++    <integer name="config_udfpsGhbmBacklightMaximum">547</integer>
++    <integer name="config_udfpsGhbmTargetBacklight">385</integer>
++    <!-- Exact luminance table from the GTS9U ANA38407 panel configuration. -->
++    <string-array name="config_udfpsGhbmNits" translatable="false">
++        <item>2</item>
++        <item>2</item>
++        <item>3</item>
++        <item>3</item>
++        <item>4</item>
++        <item>5</item>
++        <item>5</item>
++        <item>6</item>
++        <item>7</item>
++        <item>7</item>
++        <item>8</item>
++        <item>9</item>
++        <item>10</item>
++        <item>11</item>
++        <item>12</item>
++        <item>13</item>
++        <item>13</item>
++        <item>14</item>
++        <item>15</item>
++        <item>16</item>
++        <item>17</item>
++        <item>18</item>
++        <item>19</item>
++        <item>20</item>
++        <item>21</item>
++        <item>22</item>
++        <item>23</item>
++        <item>25</item>
++        <item>26</item>
++        <item>27</item>
++        <item>28</item>
++        <item>29</item>
++        <item>30</item>
++        <item>31</item>
++        <item>32</item>
++        <item>34</item>
++        <item>35</item>
++        <item>36</item>
++        <item>37</item>
++        <item>38</item>
++        <item>40</item>
++        <item>41</item>
++        <item>42</item>
++        <item>43</item>
++        <item>45</item>
++        <item>46</item>
++        <item>47</item>
++        <item>48</item>
++        <item>50</item>
++        <item>51</item>
++        <item>52</item>
++        <item>54</item>
++        <item>55</item>
++        <item>56</item>
++        <item>58</item>
++        <item>59</item>
++        <item>60</item>
++        <item>62</item>
++        <item>63</item>
++        <item>64</item>
++        <item>66</item>
++        <item>67</item>
++        <item>68</item>
++        <item>70</item>
++        <item>71</item>
++        <item>73</item>
++        <item>74</item>
++        <item>76</item>
++        <item>77</item>
++        <item>78</item>
++        <item>80</item>
++        <item>81</item>
++        <item>83</item>
++        <item>84</item>
++        <item>86</item>
++        <item>87</item>
++        <item>89</item>
++        <item>90</item>
++        <item>92</item>
++        <item>93</item>
++        <item>95</item>
++        <item>96</item>
++        <item>98</item>
++        <item>99</item>
++        <item>101</item>
++        <item>102</item>
++        <item>104</item>
++        <item>105</item>
++        <item>107</item>
++        <item>108</item>
++        <item>110</item>
++        <item>112</item>
++        <item>113</item>
++        <item>115</item>
++        <item>116</item>
++        <item>118</item>
++        <item>119</item>
++        <item>121</item>
++        <item>123</item>
++        <item>124</item>
++        <item>126</item>
++        <item>127</item>
++        <item>129</item>
++        <item>131</item>
++        <item>132</item>
++        <item>134</item>
++        <item>136</item>
++        <item>137</item>
++        <item>139</item>
++        <item>140</item>
++        <item>142</item>
++        <item>144</item>
++        <item>145</item>
++        <item>147</item>
++        <item>149</item>
++        <item>150</item>
++        <item>152</item>
++        <item>154</item>
++        <item>156</item>
++        <item>157</item>
++        <item>159</item>
++        <item>161</item>
++        <item>162</item>
++        <item>164</item>
++        <item>166</item>
++        <item>167</item>
++        <item>169</item>
++        <item>171</item>
++        <item>173</item>
++        <item>174</item>
++        <item>176</item>
++        <item>178</item>
++        <item>180</item>
++        <item>181</item>
++        <item>183</item>
++        <item>185</item>
++        <item>187</item>
++        <item>188</item>
++        <item>190</item>
++        <item>192</item>
++        <item>194</item>
++        <item>195</item>
++        <item>197</item>
++        <item>199</item>
++        <item>201</item>
++        <item>203</item>
++        <item>204</item>
++        <item>206</item>
++        <item>208</item>
++        <item>210</item>
++        <item>212</item>
++        <item>214</item>
++        <item>215</item>
++        <item>217</item>
++        <item>219</item>
++        <item>221</item>
++        <item>223</item>
++        <item>225</item>
++        <item>226</item>
++        <item>228</item>
++        <item>230</item>
++        <item>232</item>
++        <item>234</item>
++        <item>236</item>
++        <item>237</item>
++        <item>239</item>
++        <item>241</item>
++        <item>243</item>
++        <item>245</item>
++        <item>247</item>
++        <item>249</item>
++        <item>251</item>
++        <item>253</item>
++        <item>254</item>
++        <item>256</item>
++        <item>258</item>
++        <item>260</item>
++        <item>262</item>
++        <item>264</item>
++        <item>266</item>
++        <item>268</item>
++        <item>270</item>
++        <item>272</item>
++        <item>274</item>
++        <item>275</item>
++        <item>277</item>
++        <item>279</item>
++        <item>281</item>
++        <item>283</item>
++        <item>285</item>
++        <item>287</item>
++        <item>289</item>
++        <item>291</item>
++        <item>293</item>
++        <item>295</item>
++        <item>297</item>
++        <item>299</item>
++        <item>301</item>
++        <item>303</item>
++        <item>305</item>
++        <item>307</item>
++        <item>309</item>
++        <item>311</item>
++        <item>313</item>
++        <item>315</item>
++        <item>317</item>
++        <item>319</item>
++        <item>321</item>
++        <item>323</item>
++        <item>325</item>
++        <item>327</item>
++        <item>329</item>
++        <item>331</item>
++        <item>333</item>
++        <item>335</item>
++        <item>337</item>
++        <item>339</item>
++        <item>341</item>
++        <item>343</item>
++        <item>345</item>
++        <item>347</item>
++        <item>349</item>
++        <item>351</item>
++        <item>353</item>
++        <item>355</item>
++        <item>357</item>
++        <item>359</item>
++        <item>361</item>
++        <item>363</item>
++        <item>365</item>
++        <item>368</item>
++        <item>370</item>
++        <item>372</item>
++        <item>374</item>
++        <item>376</item>
++        <item>378</item>
++        <item>380</item>
++        <item>382</item>
++        <item>384</item>
++        <item>386</item>
++        <item>388</item>
++        <item>390</item>
++        <item>393</item>
++        <item>395</item>
++        <item>397</item>
++        <item>399</item>
++        <item>401</item>
++        <item>403</item>
++        <item>405</item>
++        <item>407</item>
++        <item>409</item>
++        <item>411</item>
++        <item>414</item>
++        <item>416</item>
++        <item>418</item>
++        <item>420</item>
++        <item>422</item>
++        <item>423</item>
++        <item>425</item>
++        <item>427</item>
++        <item>428</item>
++        <item>430</item>
++        <item>432</item>
++        <item>433</item>
++        <item>435</item>
++        <item>436</item>
++        <item>438</item>
++        <item>440</item>
++        <item>441</item>
++        <item>443</item>
++        <item>445</item>
++        <item>446</item>
++        <item>448</item>
++        <item>450</item>
++        <item>451</item>
++        <item>453</item>
++        <item>455</item>
++        <item>456</item>
++        <item>458</item>
++        <item>460</item>
++        <item>461</item>
++        <item>463</item>
++        <item>464</item>
++        <item>466</item>
++        <item>468</item>
++        <item>469</item>
++        <item>471</item>
++        <item>473</item>
++        <item>474</item>
++        <item>476</item>
++        <item>478</item>
++        <item>479</item>
++        <item>481</item>
++        <item>483</item>
++        <item>484</item>
++        <item>486</item>
++        <item>488</item>
++        <item>489</item>
++        <item>491</item>
++        <item>492</item>
++        <item>494</item>
++        <item>496</item>
++        <item>497</item>
++        <item>499</item>
++        <item>501</item>
++        <item>502</item>
++        <item>504</item>
++        <item>506</item>
++        <item>507</item>
++        <item>509</item>
++        <item>511</item>
++        <item>512</item>
++        <item>514</item>
++        <item>516</item>
++        <item>517</item>
++        <item>519</item>
++        <item>520</item>
++        <item>522</item>
++        <item>524</item>
++        <item>525</item>
++        <item>527</item>
++        <item>529</item>
++        <item>530</item>
++        <item>532</item>
++        <item>534</item>
++        <item>535</item>
++        <item>537</item>
++        <item>539</item>
++        <item>540</item>
++        <item>542</item>
++        <item>544</item>
++        <item>545</item>
++        <item>547</item>
++        <item>548</item>
++        <item>550</item>
++        <item>552</item>
++        <item>553</item>
++        <item>555</item>
++        <item>557</item>
++        <item>558</item>
++        <item>560</item>
++        <item>562</item>
++        <item>563</item>
++        <item>565</item>
++        <item>567</item>
++        <item>568</item>
++        <item>570</item>
++        <item>572</item>
++        <item>573</item>
++        <item>575</item>
++        <item>576</item>
++        <item>578</item>
++        <item>580</item>
++        <item>581</item>
++        <item>583</item>
++        <item>585</item>
++        <item>586</item>
++        <item>588</item>
++        <item>590</item>
++        <item>591</item>
++        <item>593</item>
++        <item>595</item>
++        <item>596</item>
++        <item>598</item>
++        <item>600</item>
++        <item>601</item>
++        <item>603</item>
++        <item>604</item>
++        <item>606</item>
++        <item>608</item>
++        <item>609</item>
++        <item>611</item>
++        <item>613</item>
++        <item>614</item>
++        <item>616</item>
++        <item>618</item>
++        <item>619</item>
++        <item>621</item>
++        <item>623</item>
++        <item>624</item>
++        <item>626</item>
++        <item>628</item>
++        <item>629</item>
++        <item>631</item>
++        <item>632</item>
++        <item>634</item>
++        <item>636</item>
++        <item>637</item>
++        <item>639</item>
++        <item>641</item>
++        <item>642</item>
++        <item>644</item>
++        <item>646</item>
++        <item>647</item>
++        <item>649</item>
++        <item>650</item>
++        <item>652</item>
++        <item>654</item>
++        <item>656</item>
++        <item>657</item>
++        <item>659</item>
++        <item>660</item>
++        <item>662</item>
++        <item>664</item>
++        <item>665</item>
++        <item>667</item>
++        <item>669</item>
++        <item>670</item>
++        <item>672</item>
++        <item>674</item>
++        <item>675</item>
++        <item>677</item>
++        <item>679</item>
++        <item>680</item>
++        <item>682</item>
++        <item>684</item>
++        <item>685</item>
++        <item>687</item>
++        <item>688</item>
++        <item>690</item>
++        <item>692</item>
++        <item>693</item>
++        <item>695</item>
++        <item>697</item>
++        <item>698</item>
++        <item>700</item>
++        <item>702</item>
++        <item>703</item>
++        <item>705</item>
++        <item>707</item>
++        <item>708</item>
++        <item>710</item>
++        <item>712</item>
++        <item>713</item>
++        <item>715</item>
++        <item>716</item>
++        <item>718</item>
++        <item>720</item>
++        <item>721</item>
++        <item>723</item>
++        <item>725</item>
++        <item>726</item>
++        <item>728</item>
++        <item>730</item>
++        <item>731</item>
++        <item>733</item>
++        <item>735</item>
++        <item>736</item>
++        <item>738</item>
++        <item>740</item>
++        <item>741</item>
++        <item>743</item>
++        <item>744</item>
++        <item>746</item>
++        <item>748</item>
++        <item>749</item>
++        <item>751</item>
++        <item>753</item>
++        <item>754</item>
++        <item>756</item>
++        <item>758</item>
++        <item>759</item>
++        <item>761</item>
++        <item>763</item>
++        <item>764</item>
++        <item>766</item>
++        <item>768</item>
++        <item>769</item>
++        <item>771</item>
++        <item>772</item>
++        <item>774</item>
++        <item>776</item>
++        <item>777</item>
++        <item>779</item>
++        <item>781</item>
++        <item>782</item>
++        <item>784</item>
++        <item>786</item>
++        <item>787</item>
++        <item>789</item>
++        <item>791</item>
++        <item>792</item>
++        <item>794</item>
++        <item>796</item>
++        <item>797</item>
++        <item>799</item>
++        <item>800</item>
++        <item>802</item>
++        <item>804</item>
++        <item>805</item>
++        <item>807</item>
++        <item>809</item>
++        <item>810</item>
++        <item>812</item>
++        <item>814</item>
++        <item>815</item>
++        <item>817</item>
++        <item>819</item>
++        <item>820</item>
++        <item>822</item>
++        <item>824</item>
++        <item>825</item>
++        <item>827</item>
++        <item>828</item>
++        <item>830</item>
++        <item>832</item>
++        <item>833</item>
++        <item>835</item>
++        <item>837</item>
++        <item>838</item>
++        <item>840</item>
++        <item>842</item>
++        <item>843</item>
++        <item>845</item>
++        <item>847</item>
++        <item>848</item>
++        <item>850</item>
++        <item>852</item>
++        <item>853</item>
++        <item>855</item>
++        <item>856</item>
++        <item>858</item>
++        <item>860</item>
++        <item>861</item>
++        <item>863</item>
++        <item>865</item>
++        <item>866</item>
++        <item>868</item>
++        <item>870</item>
++        <item>871</item>
++        <item>873</item>
++        <item>875</item>
++        <item>876</item>
++        <item>878</item>
++        <item>880</item>
++        <item>881</item>
++        <item>883</item>
++        <item>884</item>
++        <item>886</item>
++        <item>888</item>
++        <item>889</item>
++        <item>891</item>
++        <item>893</item>
++        <item>894</item>
++        <item>896</item>
++        <item>898</item>
++        <item>899</item>
++        <item>900</item>
++    </string-array>
++</resources>
+diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
+index 6069cd95b4163cbcce65eb7f915ece46b3b06fdb..363abf3aad968e812504cf1128945c03dd8928f1 100644
+--- a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
++++ b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
+@@ -9,6 +9,9 @@
+          relies on this value will not be sized correctly. -->
+     <item name="pixel_pitch" format="float" type="dimen">92.55</item>
+ 
++    <!-- Left inset for the whole status bar content. -->
++    <dimen name="status_bar_padding_start">20dp</dimen>
++
+     <!-- Bottom margin size when fingerprint in display is active -->
+     <dimen name="keyguard_indication_margin_bottom">20dp</dimen>
+ 
+diff --git a/overlay/hardware/samsung/packages/dap/res/values/config.xml b/overlay/hardware/samsung/packages/dap/res/values/config.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..0dfc8ead3c9a60f86d297f392194591c78fb0c2a
+--- /dev/null
++++ b/overlay/hardware/samsung/packages/dap/res/values/config.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<resources>
++    <!-- CYG1 speaker STREAM_MUSIC reference at index 14, -3.5 dB in Q24. -->
++    <integer name="config_dolbySpeakerAuxGainQ24">11212950</integer>
++    <!-- Keep stream attenuation after Dolby on built-in speakers. -->
++    <bool name="config_dolbySpeakerPostVolume">true</bool>
++</resources>
+diff --git a/overlay/packages/apps/Settings/res/values/lineage_config.xml b/overlay/packages/apps/Settings/res/values/lineage_config.xml
+index 33a42af55e4e527c475f0fb9572700d2f15250ef..ef2db90e85459b9ca05c2d596d0c317f530567aa 100644
+--- a/overlay/packages/apps/Settings/res/values/lineage_config.xml
++++ b/overlay/packages/apps/Settings/res/values/lineage_config.xml
+@@ -22,4 +22,11 @@
+     <!-- Whether to show min refresh rate in display settings -->
+     <bool name="config_show_min_refresh_rate_switch">true</bool>
+ 
++    <!-- CYG1 renders the enrollment preview from its own camera into a TextureView. -->
++    <bool name="config_face_enroll_hal_owns_camera">true</bool>
++    <bool name="config_face_enroll_hal_preview_uses_texture_view">true</bool>
++
++    <!-- Let face enrollment follow the tablet rotation setting. -->
++    <bool name="config_face_enroll_follow_user_rotation">true</bool>
++
+ </resources>
+diff --git a/overlay/packages/services/Mtp/res/values/config.xml b/overlay/packages/services/Mtp/res/values/config.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..880f1b10f820ad13fe8fc2cd46b05443c758a7a7
+--- /dev/null
++++ b/overlay/packages/services/Mtp/res/values/config.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<resources>
++    <string name="config_mtpDeviceModel" translatable="false">Galaxy Tab S9 Ultra</string>
++</resources>
+diff --git a/proprietary-files.txt b/proprietary-files.txt
+index 7779757cdcccf1173e43fea32926227a276d73c1..0c74b40f8ef64eefb0ce41a8639497f1abf4bebe 100644
+--- a/proprietary-files.txt
++++ b/proprietary-files.txt
+@@ -15,14 +15,12 @@ vendor/lib64/librecordalive.so
+ # Audio configs
+ vendor/etc/audio/sku_kalama/mixer_paths.xml
+ vendor/etc/audio/sku_kalama/resourcemanager.xml
+-# vendor/etc/dolby/dax-default.xml
+ vendor/etc/situation_audio_policy_volumes_sec.xml
+ vendor/etc/usecaseKvManager.xml
+ 
+ # Audio FX modules
+ vendor/lib64/soundfx/libaudiosaplus_sec.so
+ vendor/lib64/soundfx/libsamsungSoundbooster_plus.so
+-# vendor/lib64/soundfx/libswdap.so
+ #vendor/lib64/soundfx/libswspatializer.so
+ 
+ # SoundAlive
+@@ -227,6 +225,13 @@ vendor/lib64/vendor.samsung.hardware.bluetooth.audio-V1-ndk.so
+ vendor/lib64/vendor.samsung.hardware.bluetooth.audio-impl.so
+ vendor/lib64/vendor.samsung.hardware.bluetooth@2.0.so
+ 
++# Face unlock
++vendor/bin/hw/vendor.samsung.hardware.biometrics.face-service|0254f446de6531c5cae33583052aa73f0c8c5246|2352010736b4a79791abcda2d5d2a2c67b3d1953
++vendor/etc/init/face-default-sec.rc|82cf75b5c985c093b6d2cce576c8498cc31732fe
++vendor/etc/vintf/manifest/face-default-sec.xml|df9a670be0245376a0e7765e725d75d7c2322a04
++vendor/lib64/libFaceService.so|d93cb6bc583341d281c02cdc077cc3f2d2a14280|d1e3446ec931e8680029ad225032e25ba7383eb9
++vendor/lib64/vendor.samsung.hardware.biometrics.face-V3-ndk.so|de3b334af240e07a6ace0ed31c008a305a1ab988
++
+ # Fingerprint
+ vendor/lib64/libsfp_sensor.so
+ vendor/lib64/libqfp_sensortest.so
+@@ -377,3 +382,13 @@ vendor/firmware/dax_param.bin
+ # Stm32 keyboard
+ vendor/firmware/keyboard_stm/stm32_gts9factory.bin
+ vendor/firmware/keyboard_stm/stm32_gts9family.bin
++
++# Samsung Dolby Atmos
++vendor/etc/dolby/dax-default.xml
++vendor/lib64/soundfx/libswdap.so
++
++# Display (HDR backlight authorization)
++vendor/etc/hdr_samsung_mx.key
++
++# Time service shutdown persistence client
++vendor/bin/time_client
+diff --git a/rootdir/Android.bp b/rootdir/Android.bp
+index 437aa4af37925860c9d4e5b88cd55320eddf0872..f02ee0505515d7281837652b83dcd17a0619375a 100644
+--- a/rootdir/Android.bp
++++ b/rootdir/Android.bp
+@@ -11,3 +11,10 @@ prebuilt_etc {
+     sub_dir: "init/hw",
+     vendor: true,
+ }
++
++prebuilt_etc {
++    name: "init.gts9uwifi.wifi.rc",
++    src: "etc/init.gts9uwifi.wifi.rc",
++    sub_dir: "init",
++    vendor: true,
++}
+diff --git a/rootdir/etc/init.gts9uwifi.rc b/rootdir/etc/init.gts9uwifi.rc
+index 749d3afc5f7df18689b7e20b205b45259075e264..3f8cab2e212a95dc640676a90894bbd7147eb71b 100644
+--- a/rootdir/etc/init.gts9uwifi.rc
++++ b/rootdir/etc/init.gts9uwifi.rc
+@@ -67,7 +67,8 @@ on boot
+     chmod 0664 /dev/cpuset/moderate/cgroup.procs
+ 
+     write /proc/sys/vm/swappiness 130
+-    write /sys/class/lcd/panel/mask_brightness 319
++    # Optical fingerprint level: GTS9U panel table, 385 -> 634 cd/m2.
++    write /sys/class/lcd/panel/mask_brightness 385
+ 
+ on shutdown
+ 
+@@ -93,7 +94,7 @@ on property:init.svc.vendor.power-hal-aidl=running
+     chown system system /sys/class/sec/tsp2/cmd
+     chmod 0660 /sys/class/sec/tsp2/cmd
+ 
+-on property:init.svc.bootanim=stopped
++on property:sys.boot_completed=1
+     # Keep tsp cmd nodes writable by system for libperfmgr aot_enable writes
+     # (DOUBLE_TAP_TO_WAKE) without relying on vendor service ownership changes.
+     chown system system /sys/class/sec/tsp/cmd
+diff --git a/rootdir/etc/init.gts9uwifi.wifi.rc b/rootdir/etc/init.gts9uwifi.wifi.rc
+new file mode 100644
+index 0000000000000000000000000000000000000000..b20b786e07c1d29ff3360b49abb0be55673cd58b
+--- /dev/null
++++ b/rootdir/etc/init.gts9uwifi.wifi.rc
+@@ -0,0 +1,36 @@
++# Samsung Wi-Fi provisioning, adapted from CYG1 and LineageOS sm8550-common.
++on post-fs-data
++    mkdir /data/vendor/conn 0771 wifi wifi
++    restorecon_recursive /data/vendor/conn
++    mkdir /mnt/vendor/efs/wifi 0755 wifi wifi
++    restorecon_recursive /mnt/vendor/efs/wifi
++    chown wifi wifi /mnt/vendor/efs/wifi/.mac.info
++    chmod 0644 /mnt/vendor/efs/wifi/.mac.info
++    chown wifi wifi /mnt/vendor/efs/wifi/.mac.cob
++    chmod 0644 /mnt/vendor/efs/wifi/.mac.cob
++    chown wifi wifi /sys/wifi/mac_addr
++    chmod 0640 /sys/wifi/mac_addr
++    chown wifi wifi /sys/wifi/ant
++    chmod 0664 /sys/wifi/ant
++    chown wifi wifi /sys/wifi/pm
++    chmod 0640 /sys/wifi/pm
++    chown wifi wifi /sys/wifi/softap
++    chmod 0640 /sys/wifi/softap
++    chown wifi wifi /sys/wifi/feature
++    chmod 0640 /sys/wifi/feature
++    chown wifi wifi /sys/wifi/wifiver
++    chmod 0640 /sys/wifi/wifiver
++    chown wifi wifi /sys/wifi/qcwlanstate
++    chmod 0644 /sys/wifi/qcwlanstate
++    chown wifi wifi /sys/wifi/memdump
++    chmod 0644 /sys/wifi/memdump
++    chown wifi wifi /sys/wifi/dump_in_progress
++    chmod 0660 /sys/wifi/dump_in_progress
++    start macloader
++
++service macloader /vendor/bin/hw/macloader
++    class main
++    user wifi
++    group wifi inet net_raw net_admin
++    disabled
++    oneshot
+diff --git a/sepolicy/vendor/file_contexts b/sepolicy/vendor/file_contexts
+new file mode 100644
+index 0000000000000000000000000000000000000000..341369f30f2137774bff03cc244b0bb9a6ce3c5b
+--- /dev/null
++++ b/sepolicy/vendor/file_contexts
+@@ -0,0 +1,3 @@
++/vendor/bin/time_client u:object_r:vendor_time_client_exec:s0
++
++/vendor/bin/hw/vendor\.samsung\.hardware\.biometrics\.face-service u:object_r:hal_face_default_exec:s0
+diff --git a/sepolicy/vendor/genfs_contexts b/sepolicy/vendor/genfs_contexts
+new file mode 100644
+index 0000000000000000000000000000000000000000..69795af85554814b8c3235c95673b4d085fcbf26
+--- /dev/null
++++ b/sepolicy/vendor/genfs_contexts
+@@ -0,0 +1,13 @@
++# SPDX-License-Identifier: Apache-2.0
++
++# Tablet-specific charging and grip wakeup sources. Match the upstream
++# sysfs_wakeup labeling used by system_suspend, keeping battery controls separate.
++genfscon sysfs "/devices/platform/soc/8c0000.qcom,qupv3_2_geni_se/88c000.i2c/i2c-66/66-0020/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/98c000.i2c/i2c-56/56-0063/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-charger/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-otg/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-fuelgauge/power_supply/sm5714-fuelgauge/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-fuelgauge/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a4000.i2c/i2c-59/59-0033/wakeup" u:object_r:sysfs_wakeup:s0
+diff --git a/sepolicy/vendor/hal_face_default.te b/sepolicy/vendor/hal_face_default.te
+new file mode 100644
+index 0000000000000000000000000000000000000000..f9712ed6b6ea19655f1155f95f0e999e690be609
+--- /dev/null
++++ b/sepolicy/vendor/hal_face_default.te
+@@ -0,0 +1,15 @@
++# Open the front camera through the vendor NDK camera client.
++allow hal_face_default fwk_camera_service:service_manager find;
++binder_call(hal_face_default, cameraserver)
++binder_call(cameraserver, hal_face_default)
++hal_client_domain(hal_face_default, hal_graphics_allocator)
++
++# Samsung's preview buffer-queue adapter uses the HIDL token manager.
++hwbinder_use(hal_face_default)
++allow hal_face_default hidl_token_hwservice:hwservice_manager find;
++
++# The CYG1 face engine uses the sec_fr trusted app from the firmware partition.
++r_dir_file(hal_face_default, firmware_file)
++allow hal_face_default tee_device:chr_file rw_file_perms;
++allow hal_face_default vendor_dmabuf_qseecom_heap_device:chr_file rw_file_perms;
++allow hal_face_default vendor_dmabuf_qseecom_ta_heap_device:chr_file rw_file_perms;
+diff --git a/sepolicy/vendor/vendor_time_client.te b/sepolicy/vendor/vendor_time_client.te
+new file mode 100644
+index 0000000000000000000000000000000000000000..abe4c84551727465d86f9672589d087a9956456f
+--- /dev/null
++++ b/sepolicy/vendor/vendor_time_client.te
+@@ -0,0 +1,13 @@
++# SPDX-License-Identifier: Apache-2.0
++
++# One-shot shutdown helper; it only submits the current clock to time_daemon.
++type vendor_time_client, domain;
++type vendor_time_client_exec, exec_type, vendor_file_type, file_type;
++init_daemon_domain(vendor_time_client)
++
++allow vendor_time_client self:unix_stream_socket create_stream_socket_perms;
++allow vendor_time_client vendor_time_daemon:unix_stream_socket connectto;
++
++# time_daemon authenticates the client using /proc/<pid>/comm.
++allow vendor_time_daemon vendor_time_client:dir search;
++allow vendor_time_daemon vendor_time_client:file { open read };
+diff --git a/vendor.prop b/vendor.prop
+index 100d51ca5d646eb958e7de58014ceb850eee88e1..88b6aff2700d229c2249026769dd441d5f531b7c 100644
+--- a/vendor.prop
++++ b/vendor.prop
+@@ -43,3 +43,11 @@ sys.brightness.disable_gamma_conversion=true
+ 
+ # Fingerprint
+ ro.vendor.fingerprint.rectangular_sensor_location=833,2644,1016,2827
++
++# DC motor: 63 ms gives a 50 ms gesture effect at MEDIUM strength (0.8).
++ro.vendor.vibrator_hal.tick_duration=63
++ro.vendor.vibrator_hal.click_duration=63
++ro.vendor.vibrator_hal.texture_tick_duration=63
++
++# USB product descriptor
++vendor.usb.product_string=Galaxy Tab S9 Ultra

@@ -1,0 +1,128 @@
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+index 1b7b2e0989ea1591f19a7b5c541af54c962b0313..3da27581cdda0d8d37ec7177ed0f29371598e96e 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+@@ -200,6 +200,7 @@ private:
+     std::unique_ptr<planner::Planner> mPlanner;
+     std::unique_ptr<HwcAsyncWorker> mHwComposerAsyncWorker;
+ 
++    bool mForceClientCompositionForHdr = false;
+     bool mPredictCompositionStrategy = false;
+     bool mOffloadPresent = false;
+ 
+diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+index 28250e0b07fc0c4c6ac1797420c9a6b4b3174f37..e93b892a185e5b6eea7560497f2c557cdbff2b7e 100644
+--- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
++++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+@@ -888,6 +888,18 @@ void Output::updateCompositionState(const compositionengine::CompositionRefreshA
+     mLayerRequestingBackgroundBlur = findLayerRequestingBackgroundComposition();
+     bool forceClientComposition = mLayerRequestingBackgroundBlur != nullptr;
+ 
++    const auto& state = getState();
++    // Older composers can set panel brightness but cannot compensate SDR layers.
++    // Render the whole mixed frame on the GPU so its layers share the same white point.
++    const bool forceClientCompositionForHdr = state.sdrWhitePointNits > 0.f &&
++            state.displayBrightnessNits > state.sdrWhitePointNits &&
++            getDisplayIdVariant().and_then(asPhysicalDisplayId) &&
++            !getCompositionEngine().getHwComposer().getComposer()->isSupported(
++                    Hwc2::Composer::OptionalFeature::LayerBrightness);
++    const bool includeGeometry = refreshArgs.updatingGeometryThisFrame ||
++            forceClientCompositionForHdr != mForceClientCompositionForHdr;
++    mForceClientCompositionForHdr = forceClientCompositionForHdr;
++
+     auto* properties = getOverlaySupport();
+ 
+     for (auto* layer : getOutputLayersOrderedByZ()) {
+@@ -896,8 +908,9 @@ void Output::updateCompositionState(const compositionengine::CompositionRefreshA
+         const bool layerForceClientComposition =
+                 refreshArgs.forcedClientCompositionLayerStacks.contains(outputLayerStack);
+ 
+-        layer->updateCompositionState(refreshArgs.updatingGeometryThisFrame,
+-                                      layerForceClientComposition || forceClientComposition,
++        layer->updateCompositionState(includeGeometry,
++                                      layerForceClientComposition || forceClientComposition ||
++                                              forceClientCompositionForHdr,
+                                       refreshArgs.internalDisplayRotationFlags,
+                                       properties ? properties->lutProperties : std::nullopt);
+ 
+diff --git a/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp b/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
+index e07d499fb244e76a7559338b897979d09f71cf72..a2e378778b195f2d7828940bda157edb68c7f9c8 100644
+--- a/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
++++ b/services/surfaceflinger/DisplayHardware/AidlComposerHal.cpp
+@@ -308,6 +308,7 @@ bool AidlComposer::isSupported(OptionalFeature feature) const {
+         case OptionalFeature::RefreshRateSwitching:
+         case OptionalFeature::ExpectedPresentTime:
+         case OptionalFeature::DisplayBrightnessCommand:
++        case OptionalFeature::LayerBrightness:
+         case OptionalFeature::KernelIdleTimer:
+         case OptionalFeature::PhysicalDisplayOrientation:
+             return true;
+diff --git a/services/surfaceflinger/DisplayHardware/ComposerHal.h b/services/surfaceflinger/DisplayHardware/ComposerHal.h
+index d3127bc9f013c2f5665203f85275b4252cbec796..043828f9ff902a70550c7cd1fa7523d4bc28221a 100644
+--- a/services/surfaceflinger/DisplayHardware/ComposerHal.h
++++ b/services/surfaceflinger/DisplayHardware/ComposerHal.h
+@@ -109,6 +109,8 @@ public:
+         ExpectedPresentTime,
+         // Whether setDisplayBrightness is able to be applied as part of a display command.
+         DisplayBrightnessCommand,
++        // Whether the composer applies per-layer brightness for mixed SDR/HDR.
++        LayerBrightness,
+         KernelIdleTimer,
+         PhysicalDisplayOrientation,
+         DisplayCommandModeset,
+diff --git a/services/surfaceflinger/DisplayHardware/HidlComposerHal.cpp b/services/surfaceflinger/DisplayHardware/HidlComposerHal.cpp
+index 5e6925658233a065364a0ba2115e50594efb508f..5e560734abdabb5d3532c65014b44da95b92c1dc 100644
+--- a/services/surfaceflinger/DisplayHardware/HidlComposerHal.cpp
++++ b/services/surfaceflinger/DisplayHardware/HidlComposerHal.cpp
+@@ -269,6 +269,7 @@ bool HidlComposer::isSupported(OptionalFeature feature) const {
+             return mClient_2_4 != nullptr;
+         case OptionalFeature::ExpectedPresentTime:
+         case OptionalFeature::DisplayBrightnessCommand:
++        case OptionalFeature::LayerBrightness:
+         case OptionalFeature::KernelIdleTimer:
+         case OptionalFeature::PhysicalDisplayOrientation:
+         case OptionalFeature::DisplayCommandModeset:
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 9128394aa18b24846745d673566117732774fb07..44f7324e332089d2caa484feae6f3c680e014b60 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -2418,12 +2418,33 @@ status_t SurfaceFlinger::setDisplayBrightness(const sp<IBinder>& displayToken,
+                        }
+                        return ftl::yield<status_t>(OK);
+                    } else {
+-                       return getHwComposer()
+-                               .setDisplayBrightness(display->getPhysicalId(),
+-                                                     brightness.displayBrightness,
+-                                                     brightness.displayBrightnessNits,
+-                                                     Hwc2::Composer::DisplayBrightnessOptions{
+-                                                             .applyImmediately = true});
++                       const status_t result =
++                               getHwComposer()
++                                       .setDisplayBrightness(
++                                               display->getPhysicalId(),
++                                               brightness.displayBrightness,
++                                               brightness.displayBrightnessNits,
++                                               Hwc2::Composer::DisplayBrightnessOptions{
++                                                       .applyImmediately = true})
++                                       .get();
++                       if (result == OK) {
++                           auto compositionDisplay = display->getCompositionDisplay();
++                           const auto& state = compositionDisplay->getState();
++                           const bool needsDimming = brightness.sdrWhitePointNits > 0.f &&
++                                   brightness.displayBrightnessNits >
++                                           brightness.sdrWhitePointNits;
++                           const bool wasDimming = state.sdrWhitePointNits > 0.f &&
++                                   state.displayBrightnessNits > state.sdrWhitePointNits;
++                           if (needsDimming || wasDimming) {
++                               // HIDL can change panel brightness immediately. Pass the white
++                               // point to RenderEngine for SDR compensation in the next frame.
++                               compositionDisplay->setDisplayBrightness(
++                                       brightness.sdrWhitePointNits,
++                                       brightness.displayBrightnessNits);
++                               scheduleComposite(FrameHint::kNone);
++                           }
++                       }
++                       return ftl::yield<status_t>(result);
+                    }
+                } else {
+                    SFTRACE_FORMAT("%s (invalid display token) %s", whence,
