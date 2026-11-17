@@ -997,6 +997,25 @@ index 0000000000000000000000000000000000000000..909b31b77954e86df47a59e56655f28e
 +    <integer name="face_preview_width">640</integer>
 +    <integer name="face_preview_height">480</integer>
 +</resources>
+diff --git a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
+index 50e49d221081f2ba1340a2a1ad9f80ab596c5d74..1c213222e643d375f1087ec58f70e79246abd0da 100644
+--- a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
++++ b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
+@@ -20,4 +20,13 @@
+ <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+     <!-- Lockscreen rotation default -->
+     <bool name="config_lockScreenRotationEnabledByDefault">true</bool>
++    <!-- GTS9U has no MOVIE_MODE command table. Filter that unsupported menu entry. -->
++    <bool name="config_filterDisplayModes">true</bool>
++    <string-array name="config_displayModeMappings" translatable="false">
++        <item>Dynamic:Dynamic</item>
++        <item>Standard:Standard</item>
++        <item>Natural:Natural</item>
++        <item>Adaptive:Adaptive</item>
++        <item>Reading:Reading</item>
++    </string-array>
+ </resources>
+\ No newline at end of file
 diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
 index 90e5a62edc941344b1ce3f1f5ca668e104067679..faa1a07d0dbc02678f9b4d44409ad651d99ff327 100644
 --- a/overlay/frameworks/base/core/res/res/values/config.xml

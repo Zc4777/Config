@@ -5,10 +5,10 @@
     {
       "path": "device/samsung/gts9uwifi",
       "base": "1951735dbd014cf4f788bc2b4f388696022f69af",
-      "commit": "110fefc4b6b1acecf314aa52ef688ac8af5f0be2",
+      "commit": "2d5f125502e4fe7c2a49598cbc956dce850536cc",
       "repository": "zc4777-gts9u/android_device_samsung_gts9uwifi",
       "patch": "patches/device_samsung_gts9uwifi.patch",
-      "sha256": "aec3a841f7e7d70ca7f28da39ada164c5bbc1f8ab6bf30c1ded2c28cf581c3bb",
+      "sha256": "e4bd6e8b05a3cec4944c20d8b19e779423f5966a922af084f598052a261635ed",
       "apply_after_sync": false
     },
     {
@@ -65,9 +65,9 @@
     {
       "path": "lineage-sdk",
       "base": "33dae0ab26b7efb7eab76bf60b347d2f4df1e5a6",
-      "commit": "fdd095229ed2bc479697cfed08decd85e0fc22d8",
+      "commit": "42f6811c0463c5ec542a491b5a863697dcf916ab",
       "patch": "patches/lineage-sdk.patch",
-      "sha256": "496277485613b2da7be1d185bb34d3c49fd95ca634c966652486f0dc74b14689",
+      "sha256": "e3807cfd55540e54ac2a46e8c16590d2d2ef50feec4c18969792ca4c7df82066",
       "apply_after_sync": true
     },
     {
@@ -81,10 +81,10 @@
     {
       "path": "packages/apps/Settings",
       "base": "31b1a9f1cab9638bc6af9f4e6412fbf3b3a7947a",
-      "commit": "f8e9d2fbb74c2b5744258f3b06433701aa192794",
+      "commit": "62cbdc39e97ebab25e2a5dbe49493e741ac9f4e2",
       "repository": "zc4777-gts9u/android_packages_apps_Settings",
       "patch": "patches/packages_apps_Settings.patch",
-      "sha256": "33cba004e5fb81707b77af10b70408d11fe3a99cd6bbc29cff37e01808fc830c",
+      "sha256": "3cf8e228d1045bf38b14f80e94f2a356386d96ae5e39c31f4dbfeda03ba05b1d",
       "apply_after_sync": false
     },
     {
@@ -146,12 +146,20 @@
     {
       "path": "hardware/samsung",
       "repository": "zc4777-gts9u/android_hardware_samsung",
-      "commit": "71380e52efe54e4f539921857e877fb0928ebb71"
+      "commit": "9be23f005a458f86e4b85a9cc6b222614c23f074"
     },
     {
       "path": "vendor/samsung",
       "repository": "zc4777-gts9u/proprietary_vendor_samsung",
       "commit": "8d96722b6c6e1ebf3604b6820b8679d988285c68"
+    },
+    {
+      "path": "packages/apps/LineageParts",
+      "base": "2ce948052f7f7675075c2ec9d68129c99b6e4ee7",
+      "commit": "5cdf901aab40a27760f1758ea3e76c75a9bb1abd",
+      "apply_after_sync": true,
+      "patch": "patches/packages_apps_LineageParts.patch",
+      "sha256": "cf839508e082e8bba56a079f513ae75013320baaea5aa35678decaddcea3920d"
     }
   ]
 }

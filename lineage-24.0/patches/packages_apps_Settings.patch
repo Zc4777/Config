@@ -879,10 +879,18 @@ index 0000000000000000000000000000000000000000..15b5827ccce4228ee7ed9b21b1d0d1f2
 +    }
 +}
 diff --git a/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt b/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
-index ae0efad05fe69ae23bda1b5c5ba6ef1fd76e013f..47621f79e1a184e96ec20d0f1ac1ff8ba3900ab9 100644
+index ae0efad05fe69ae23bda1b5c5ba6ef1fd76e013f..4d47527969a346e6ae909e0529ed42c00cfe9021 100644
 --- a/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
 +++ b/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
-@@ -98,7 +98,7 @@ class MyDeviceInfoApiFirstScreen :
+@@ -25,6 +25,7 @@ import android.os.Build
+ import android.os.SystemClock
+ import android.provider.Settings.Global.DEVICE_NAME
+ import com.android.settings.R
++import com.android.settings.deviceinfo.BuildNumberUtils
+ import com.android.settings.flags.Flags
+ import com.android.settings.wifi.tether.WifiDeviceNameTextValidator
+ import com.android.settingslib.datastore.Permissions
+@@ -98,7 +99,7 @@ class MyDeviceInfoApiFirstScreen :
          ) {
              sensitivityLevel(SensitivityLevel.DO_NOT_EXPOSE)
  

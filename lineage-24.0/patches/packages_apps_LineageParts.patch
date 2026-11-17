@@ -1,0 +1,13 @@
+diff --git a/src/org/lineageos/lineageparts/livedisplay/ColorProfileFragment.java b/src/org/lineageos/lineageparts/livedisplay/ColorProfileFragment.java
+index 33fef0237204fcc4c0b036c5e0eb00457bca9d38..a1f3794d8bd6f662e669e72d067bbcd736d19133 100644
+--- a/src/org/lineageos/lineageparts/livedisplay/ColorProfileFragment.java
++++ b/src/org/lineageos/lineageparts/livedisplay/ColorProfileFragment.java
+@@ -199,7 +199,7 @@ public class ColorProfileFragment extends SettingsPreferenceFragment implements
+         pref.setTitle(ResourceUtils.getLocalizedString(
+                     getResources(), mode.name, COLOR_PROFILE_TITLE));
+         pref.setKey(COLOR_PROFILE + mode.id);
+-        if (mode.id == defaultMode.id) {
++        if (defaultMode != null && mode.id == defaultMode.id) {
+             pref.setChecked(true);
+         }
+         pref.setOnClickListener(this);

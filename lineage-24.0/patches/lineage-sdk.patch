@@ -1,3 +1,24 @@
+diff --git a/lineage/lib/main/java/org/lineageos/platform/internal/display/DisplayHardwareController.java b/lineage/lib/main/java/org/lineageos/platform/internal/display/DisplayHardwareController.java
+index 016acd307839cdfc9d0ef81a32381fa3f0c5936e..da215aea7238db56ee8632afd4065b163a9aa427 100644
+--- a/lineage/lib/main/java/org/lineageos/platform/internal/display/DisplayHardwareController.java
++++ b/lineage/lib/main/java/org/lineageos/platform/internal/display/DisplayHardwareController.java
+@@ -301,6 +301,16 @@ public class DisplayHardwareController extends LiveDisplayFeature {
+ 
+         // always start with the current values in the hardware
+         int[] currentInts = mHardware.getDisplayColorCalibration();
++        if (currentInts == null || currentInts.length < 3 || mMaxColor <= 0) {
++            // A restarted or temporarily unavailable HAL cannot provide an animation origin.
++            // Keep the requested adjustment; the next update can retry after reconnection.
++            if (mAnimator != null) {
++                mAnimator.cancel();
++                mAnimator.removeAllUpdateListeners();
++            }
++            Slog.w(TAG, "Color calibration unavailable; deferring color animation");
++            return;
++        }
+         float[] currentColors = new float[] {
+                 (float)currentInts[0] / (float)mMaxColor,
+                 (float)currentInts[1] / (float)mMaxColor,
 diff --git a/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java b/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java
 index 3897e666ab2b7e9f12692e6262b619095a248cb5..799f461c27e3c895d18e5e022d1ee95706167080 100644
 --- a/packages/LineagePreferenceLib/java/lineageos/preference/LineagePartsPreference.java
@@ -33,3 +54,149 @@ index 3897e666ab2b7e9f12692e6262b619095a248cb5..799f461c27e3c895d18e5e022d1ee957
              setTitle(mPart.getTitle());
              setSummary(mPart.getSummary());
          }
+diff --git a/sdk/src/java/lineageos/hardware/LineageHardwareManager.java b/sdk/src/java/lineageos/hardware/LineageHardwareManager.java
+index 9e1c894979c59f8d0c8115323c58d25201dc7412..34505271df8be2e204f14674fcdad2d9cdfd8922 100644
+--- a/sdk/src/java/lineageos/hardware/LineageHardwareManager.java
++++ b/sdk/src/java/lineageos/hardware/LineageHardwareManager.java
+@@ -9,6 +9,7 @@ import android.content.Context;
+ import android.os.IBinder;
+ import android.os.RemoteException;
+ import android.os.ServiceManager;
++import android.os.ServiceSpecificException;
+ import android.util.ArrayMap;
+ import android.util.Log;
+ import android.util.Range;
+@@ -37,8 +38,10 @@ import vendor.lineage.touch.ITouchscreenGesture;
+ import java.lang.reflect.Field;
+ import java.util.ArrayList;
+ import java.util.Arrays;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * Manages access to LineageOS hardware extensions
+@@ -180,7 +183,8 @@ public final class LineageHardwareManager {
+     private final ArrayMap<String, String> mDisplayModeMappings = new ArrayMap<String, String>();
+     private final boolean mFilterDisplayModes;
+ 
+-    private HashMap<Integer, IBinder> mAIDLMap = new HashMap<Integer, IBinder>();
++    private final Map<Integer, IBinder> mAIDLMap =
++            Collections.synchronizedMap(new HashMap<Integer, IBinder>());
+ 
+     /**
+      * @hide to prevent subclassing from outside of the framework
+@@ -251,11 +255,23 @@ public final class LineageHardwareManager {
+         return isSupportedAIDL(feature) || isSupportedHWC2(feature);
+     }
+ 
+-    private boolean isSupportedAIDL(int feature) {
++    private synchronized boolean isSupportedAIDL(int feature) {
+         if (!mAIDLMap.containsKey(feature)) {
+             mAIDLMap.put(feature, getAIDLService(feature));
++        } else {
++            final IBinder cached = mAIDLMap.get(feature);
++            if (cached != null && !cached.isBinderAlive()) {
++                final String name = getAIDLServiceName(feature);
++                // Do not block a display/system thread while the crashed HAL restarts.
++                final IBinder replacement = name == null ? null : ServiceManager.checkService(name);
++                if (replacement != null && replacement.isBinderAlive()) {
++                    mAIDLMap.put(feature, replacement);
++                }
++                // Keep the dead entry if no replacement exists, so the next call retries.
++            }
+         }
+-        return mAIDLMap.get(feature) != null;
++        final IBinder binder = mAIDLMap.get(feature);
++        return binder != null && binder.isBinderAlive();
+     }
+ 
+     private boolean isSupportedHWC2(int feature) {
+@@ -269,55 +285,44 @@ public final class LineageHardwareManager {
+     }
+ 
+     private IBinder getAIDLService(int feature) {
++        final String name = getAIDLServiceName(feature);
++        return name == null ? null : ServiceManager.waitForDeclaredService(name);
++    }
++
++    private String getAIDLServiceName(int feature) {
+         switch (feature) {
+             case FEATURE_ADAPTIVE_BACKLIGHT:
+-                return ServiceManager.waitForDeclaredService(
+-                        IAdaptiveBacklight.DESCRIPTOR + "/default");
++                return IAdaptiveBacklight.DESCRIPTOR + "/default";
+             case FEATURE_ANTI_FLICKER:
+-                return ServiceManager.waitForDeclaredService(
+-                        IAntiFlicker.DESCRIPTOR + "/default");
++                return IAntiFlicker.DESCRIPTOR + "/default";
+             case FEATURE_AUTO_CONTRAST:
+-                return ServiceManager.waitForDeclaredService(
+-                        IAutoContrast.DESCRIPTOR + "/default");
++                return IAutoContrast.DESCRIPTOR + "/default";
+             case FEATURE_COLOR_BALANCE:
+-                return ServiceManager.waitForDeclaredService(
+-                        IColorBalance.DESCRIPTOR + "/default");
++                return IColorBalance.DESCRIPTOR + "/default";
+             case FEATURE_COLOR_ENHANCEMENT:
+-                return ServiceManager.waitForDeclaredService(
+-                        IColorEnhancement.DESCRIPTOR + "/default");
++                return IColorEnhancement.DESCRIPTOR + "/default";
+             case FEATURE_DISPLAY_COLOR_CALIBRATION:
+-                return ServiceManager.waitForDeclaredService(
+-                        IDisplayColorCalibration.DESCRIPTOR + "/default");
++                return IDisplayColorCalibration.DESCRIPTOR + "/default";
+             case FEATURE_DISPLAY_MODES:
+-                return ServiceManager.waitForDeclaredService(
+-                        IDisplayModes.DESCRIPTOR + "/default");
++                return IDisplayModes.DESCRIPTOR + "/default";
+             case FEATURE_HIGH_TOUCH_POLLING_RATE:
+-                return ServiceManager.waitForDeclaredService(
+-                        IHighTouchPollingRate.DESCRIPTOR + "/default");
++                return IHighTouchPollingRate.DESCRIPTOR + "/default";
+             case FEATURE_HIGH_TOUCH_SENSITIVITY:
+-                return ServiceManager.waitForDeclaredService(
+-                        IGloveMode.DESCRIPTOR + "/default");
++                return IGloveMode.DESCRIPTOR + "/default";
+             case FEATURE_KEY_DISABLE:
+-                return ServiceManager.waitForDeclaredService(
+-                        IKeyDisabler.DESCRIPTOR + "/default");
++                return IKeyDisabler.DESCRIPTOR + "/default";
+             case FEATURE_KEY_SWAP:
+-                return ServiceManager.waitForDeclaredService(
+-                        IKeySwapper.DESCRIPTOR + "/default");
++                return IKeySwapper.DESCRIPTOR + "/default";
+             case FEATURE_PICTURE_ADJUSTMENT:
+-                return ServiceManager.waitForDeclaredService(
+-                        IPictureAdjustment.DESCRIPTOR + "/default");
++                return IPictureAdjustment.DESCRIPTOR + "/default";
+             case FEATURE_READING_ENHANCEMENT:
+-                return ServiceManager.waitForDeclaredService(
+-                        IReadingEnhancement.DESCRIPTOR + "/default");
++                return IReadingEnhancement.DESCRIPTOR + "/default";
+             case FEATURE_SUNLIGHT_ENHANCEMENT:
+-                return ServiceManager.waitForDeclaredService(
+-                        ISunlightEnhancement.DESCRIPTOR + "/default");
++                return ISunlightEnhancement.DESCRIPTOR + "/default";
+             case FEATURE_TOUCH_HOVERING:
+-                return ServiceManager.waitForDeclaredService(
+-                        IStylusMode.DESCRIPTOR + "/default");
++                return IStylusMode.DESCRIPTOR + "/default";
+             case FEATURE_TOUCHSCREEN_GESTURES:
+-                return ServiceManager.waitForDeclaredService(
+-                        ITouchscreenGesture.DESCRIPTOR + "/default");
++                return ITouchscreenGesture.DESCRIPTOR + "/default";
+         }
+         return null;
+     }
+@@ -493,7 +498,8 @@ public final class LineageHardwareManager {
+             if (checkService()) {
+                 return sService.getDisplayColorCalibration();
+             }
+-        } catch (RemoteException e) {
++        } catch (RemoteException | ServiceSpecificException | UnsupportedOperationException e) {
++            Log.w(TAG, "Display color calibration unavailable", e);
+         }
+         return null;
+     }
