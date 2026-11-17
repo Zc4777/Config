@@ -23,7 +23,7 @@
     {
       "path": "frameworks/base",
       "base": "22de88b7b8eb979c816669c7963dee66ae4953cd",
-      "commit": "45da0694845db814175d9c3f8ae50ac123ae7320",
+      "commit": "aa856249ffad4aa560584aa1cca03cba8dc59bad",
       "repository": "Zc4777/android_frameworks_base",
       "patch": "patches/frameworks_base.patch",
       "sha256": "11c7703718dcb7edf216a1419652b0e082a63ac69791bba8baf746cfd1928093",
@@ -81,10 +81,10 @@
     {
       "path": "packages/apps/Settings",
       "base": "31b1a9f1cab9638bc6af9f4e6412fbf3b3a7947a",
-      "commit": "cf32b3759951d76390c1142444206e88c054aa7e",
+      "commit": "f8e9d2fbb74c2b5744258f3b06433701aa192794",
       "repository": "Zc4777/android_packages_apps_Settings",
       "patch": "patches/packages_apps_Settings.patch",
-      "sha256": "e5e8fec7821621486cfd0e92b6afe08f08b57b62f197f84692d1cc106646d283",
+      "sha256": "33cba004e5fb81707b77af10b70408d11fe3a99cd6bbc29cff37e01808fc830c",
       "apply_after_sync": false
     },
     {
