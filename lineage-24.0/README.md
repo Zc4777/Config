@@ -7,7 +7,7 @@ Settings 和 frameworks/base 的修改已包含在各自个人仓库中，不需
 在新的空目录同步：
 
 ```bash
-repo init -u https://github.com/Zc4777/Config.git -b lineage-24.0 -m lineage-24.0/manifest.xml
+repo init -u https://github.com/zc4777-gts9u/manifest.git -b lineage-24.0 -m lineage-24.0/manifest.xml
 repo sync -c -j8
 python3 .repo/manifests/lineage-24.0/apply-patches.py "$PWD" --check
 python3 .repo/manifests/lineage-24.0/apply-patches.py "$PWD"
