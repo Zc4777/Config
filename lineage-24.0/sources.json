@@ -5,19 +5,19 @@
     {
       "path": "device/samsung/gts9uwifi",
       "base": "1951735dbd014cf4f788bc2b4f388696022f69af",
-      "commit": "2d5f125502e4fe7c2a49598cbc956dce850536cc",
+      "commit": "2ab0648e02f1e6aac33f53443941cfce75c10317",
       "repository": "zc4777-gts9u/android_device_samsung_gts9uwifi",
       "patch": "patches/device_samsung_gts9uwifi.patch",
-      "sha256": "e4bd6e8b05a3cec4944c20d8b19e779423f5966a922af084f598052a261635ed",
+      "sha256": "68093a1a8965541ab6e58236ad5b6a96c0313e614565cc08e742fc98e59ba047",
       "apply_after_sync": false
     },
     {
       "path": "device/samsung/sm8550-common",
       "base": "0a77ba7d7ea145852fc262a75e97185ee8ce63d3",
-      "commit": "c2e7d14f98519c1fb1b1d72057c3749845167428",
+      "commit": "b166410316beb08f83d4e2eb6c7b584ee76e7cce",
       "repository": "zc4777-gts9u/android_device_samsung_sm8550-common",
       "patch": "patches/device_samsung_sm8550-common.patch",
-      "sha256": "385bbf46390232c0e023a45374b8ce8e9970d573deae90256e195c8edf1aa5d0",
+      "sha256": "60f426a0f8e91929cfa22a61bb127018a7a252bfb074630c6d51e318c781bef2",
       "apply_after_sync": false
     },
     {
@@ -52,15 +52,6 @@
       "patch": "patches/hardware_qcom-caf_sm8550_display.patch",
       "sha256": "20daca1dbce72d29437138b86256a16e9a707ed2da193bf3992aa61b673f37c3",
       "apply_after_sync": true
-    },
-    {
-      "path": "hardware/dolby",
-      "base": "d24245e420b44d360fb6e45d959cb255dc306f85",
-      "commit": "f20b2d3cb0c33c560c7158b9d38f358c232ec67e",
-      "repository": "zc4777-gts9u/android_hardware_dolby",
-      "patch": "patches/hardware_dolby.patch",
-      "sha256": "831eaa7d161b79a11118ac36ca5cae70720f4e9658b35570565ea4bfc189acac",
-      "apply_after_sync": false
     },
     {
       "path": "lineage-sdk",
@@ -146,7 +137,7 @@
     {
       "path": "hardware/samsung",
       "repository": "zc4777-gts9u/android_hardware_samsung",
-      "commit": "9be23f005a458f86e4b85a9cc6b222614c23f074"
+      "commit": "6fabf00dc81dbcdd494d99d0f7d793b85925c92b"
     },
     {
       "path": "vendor/samsung",

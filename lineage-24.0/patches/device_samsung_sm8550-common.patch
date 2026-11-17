@@ -1,5 +1,17 @@
+diff --git a/BoardConfigCommon.mk b/BoardConfigCommon.mk
+index 7ede6f4..e4d7dcb 100644
+--- a/BoardConfigCommon.mk
++++ b/BoardConfigCommon.mk
+@@ -198,7 +198,6 @@ DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE += \
+ DEVICE_MANIFEST_FILE :=  \
+     $(AUDIO_HAL_DIR)/configs/common/manifest_non_qmaa.xml \
+     $(AUDIO_HAL_DIR)/configs/common/manifest_non_qmaa_extn.xml \
+-    hardware/dolby/proprietary/vendor/etc/vintf/manifest/vendor.dolby.media.c2.xml \
+     $(COMMON_PATH)/vintf/manifest_kalama.xml \
+     $(COMMON_PATH)/vintf/manifest_samsung.xml
+ 
 diff --git a/audio/audio_effects.conf b/audio/audio_effects.conf
-index 9b0e76f9934ee9165dfb834351fce0da4125fe41..2e6f5be176e358f65676d35d984657fd9913385b 100644
+index 9b0e76f..2e6f5be 100644
 --- a/audio/audio_effects.conf
 +++ b/audio/audio_effects.conf
 @@ -54,15 +54,6 @@ libraries {
@@ -60,7 +72,7 @@ index 9b0e76f9934ee9165dfb834351fce0da4125fe41..2e6f5be176e358f65676d35d984657fd
  }
  
 diff --git a/audio/audio_effects.xml b/audio/audio_effects.xml
-index e3f991b406d14aa8bc886a7a044bdc8f035ed4c1..da3d5dfe15ccccb794cb17a6032fc7ad4a35605f 100644
+index e3f991b..da3d5df 100644
 --- a/audio/audio_effects.xml
 +++ b/audio/audio_effects.xml
 @@ -76,9 +76,7 @@
@@ -94,17 +106,278 @@ index e3f991b406d14aa8bc886a7a044bdc8f035ed4c1..da3d5dfe15ccccb794cb17a6032fc7ad
      </effects>
      <postprocess>
          <stream type="music">
+diff --git a/audio/audio_policy_configuration.xml b/audio/audio_policy_configuration.xml
+index 9a21ffd..ed4602c 100644
+--- a/audio/audio_policy_configuration.xml
++++ b/audio/audio_policy_configuration.xml
+@@ -407,8 +407,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+             <routes>
+                 <route type="mix" sink="Earpiece"
+                        sources="primary output,raw,deep_buffer,direct_pcm,compressed_offload,voip_rx,mmap_no_irq_out,haptics output"/>
+-                <route type="mix" sink="Speaker"
+-                       sources="primary output,raw,deep_buffer,direct_pcm,compressed_offload,voip_rx,mmap_no_irq_out,haptics output"/>
++                <xi:include href="audio_policy_speaker_route.xml"/>
+                 <route type="mix" sink="Wired Headset"
+                        sources="primary output,raw,deep_buffer,direct_pcm,compressed_offload,voip_rx,mmap_no_irq_out,haptics output"/>
+                 <route type="mix" sink="Wired Headphones"
+diff --git a/audio/audio_policy_speaker_route.xml b/audio/audio_policy_speaker_route.xml
+new file mode 100644
+index 0000000..e45c2c6
+--- /dev/null
++++ b/audio/audio_policy_speaker_route.xml
+@@ -0,0 +1,3 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<route type="mix" sink="Speaker" sources="primary output,raw,deep_buffer,direct_pcm,compressed_offload,voip_rx,mmap_no_irq_out,haptics output"/>
+diff --git a/audio/impl/Android.bp b/audio/impl/Android.bp
+index 82677f3..71a973f 100644
+--- a/audio/impl/Android.bp
++++ b/audio/impl/Android.bp
+@@ -159,12 +159,22 @@ cc_library_shared {
+         "android.hardware.audio.common@7.1-enums",
+         "android.hardware.audio.common@7.1-util",
+         "libbase",
+-    ],
++    ] + select(soong_config_variable("android_hardware_audio", "gts9u_speaker_dolby"), {
++        true: ["libaudioutils"],
++        default: [],
++    }),
++    static_libs: select(soong_config_variable("android_hardware_audio", "gts9u_speaker_dolby"), {
++        true: ["//device/samsung/gts9uwifi:libgts9u_speaker_dolby"],
++        default: [],
++    }),
+     cflags: [
+         "-DMAJOR_VERSION=7",
+         "-DMINOR_VERSION=1",
+         "-DCOMMON_TYPES_MINOR_VERSION=0",
+         "-DCORE_TYPES_MINOR_VERSION=0",
+         "-include common/all-versions/VersionMacro.h",
+-    ],
++    ] + select(soong_config_variable("android_hardware_audio", "gts9u_speaker_dolby"), {
++        true: ["-DGTS9U_SPEAKER_DOLBY"],
++        default: [],
++    }),
+ }
+diff --git a/audio/impl/Device.cpp b/audio/impl/Device.cpp
+index ae015a3..92cf9ee 100644
+--- a/audio/impl/Device.cpp
++++ b/audio/impl/Device.cpp
+@@ -182,7 +182,11 @@ std::tuple<Result, sp<IStreamOut>> Device::openOutputStreamCore(int32_t ioHandle
+     ALOGV("open_output_stream status %d stream %p", status, halStream);
+     sp<IStreamOut> streamOut;
+     if (status == OK) {
+-        streamOut = new StreamOut(this, halStream);
++        auto output = sp<StreamOut>::make(this, halStream);
++#ifdef GTS9U_SPEAKER_DOLBY
++        output->setSpeakerRoute(mSpeakerRoutes.open(ioHandle, halDevice));
++#endif
++        streamOut = output;
+         ++mOpenedStreamsCount;
+         android::hardware::setMinSchedulerPolicy(streamOut, SCHED_NORMAL, ANDROID_PRIORITY_AUDIO);
+     }
+@@ -385,6 +389,11 @@ std::tuple<Result, AudioPatchHandle> Device::createOrUpdateAudioPatch(
+                                mDevice->create_audio_patch(mDevice, sources.size(), &halSources[0],
+                                                            sinks.size(), &halSinks[0], &halPatch));
+         if (retval == Result::OK) {
++#ifdef GTS9U_SPEAKER_DOLBY
++            mSpeakerRoutes.updatePatch(static_cast<audio_patch_handle_t>(patch), halPatch,
++                                       sources.size(), halSources.get(),
++                                       sinks.size(), halSinks.get());
++#endif
+             patch = static_cast<AudioPatchHandle>(halPatch);
+         }
+     }
+@@ -393,9 +402,12 @@ std::tuple<Result, AudioPatchHandle> Device::createOrUpdateAudioPatch(
+ 
+ Return<Result> Device::releaseAudioPatch(int32_t patch) {
+     if (version() >= AUDIO_DEVICE_API_VERSION_3_0) {
+-        return analyzeStatus(
+-            "release_audio_patch",
+-            mDevice->release_audio_patch(mDevice, static_cast<audio_patch_handle_t>(patch)));
++        const int status =
++                mDevice->release_audio_patch(mDevice, static_cast<audio_patch_handle_t>(patch));
++#ifdef GTS9U_SPEAKER_DOLBY
++        if (status == OK) mSpeakerRoutes.releasePatch(static_cast<audio_patch_handle_t>(patch));
++#endif
++        return analyzeStatus("release_audio_patch", status);
+     }
+     return Result::NOT_SUPPORTED;
+ }
+@@ -490,6 +502,13 @@ Return<void> Device::getParameters(const hidl_vec<ParameterValue>& context,
+ }
+ Return<Result> Device::setParameters(const hidl_vec<ParameterValue>& context,
+                                      const hidl_vec<ParameterValue>& parameters) {
++#ifdef GTS9U_SPEAKER_DOLBY
++    if (parameters.size() == 1 &&
++        parameters[0].key == ::gts9u::audio::kDolbyProfileParameter) {
++        return ::gts9u::audio::setDolbyProfile(parameters[0].value.c_str())
++                ? Result::OK : Result::INVALID_ARGUMENTS;
++    }
++#endif
+     return setParametersImpl(context, parameters);
+ }
+ #endif
+diff --git a/audio/impl/StreamOut.cpp b/audio/impl/StreamOut.cpp
+index 09df4ed..dc54afb 100644
+--- a/audio/impl/StreamOut.cpp
++++ b/audio/impl/StreamOut.cpp
+@@ -24,6 +24,7 @@
+ 
+ #include <string.h>
+ 
++#include <algorithm>
+ #include <memory>
+ 
+ #include <HidlUtils.h>
+@@ -65,6 +66,18 @@ class WriteThread : public Thread {
+         mBuffer.reset(new (std::nothrow) uint8_t[mDataMQ->getQuantumCount()]);
+         return mBuffer != nullptr;
+     }
++#ifdef GTS9U_SPEAKER_DOLBY
++    void prepareSpeakerDolby(const std::shared_ptr<::gts9u::audio::SpeakerRoute>& route) {
++        if (!route) return;
++        auto* stream = &mStream->common;
++        auto processor = std::make_unique<::gts9u::audio::SpeakerDolby>();
++        if (processor->configure(stream->get_format(stream), stream->get_channels(stream),
++                                 stream->get_sample_rate(stream))) {
++            mSpeakerRoute = route;
++            mSpeakerDolby = std::move(processor);
++        }
++    }
++#endif
+     virtual ~WriteThread() {}
+ 
+    private:
+@@ -76,6 +89,10 @@ class WriteThread : public Thread {
+     EventFlag* mEfGroup;
+     std::unique_ptr<uint8_t[]> mBuffer;
+     IStreamOut::WriteStatus mStatus;
++#ifdef GTS9U_SPEAKER_DOLBY
++    std::shared_ptr<::gts9u::audio::SpeakerRoute> mSpeakerRoute;
++    std::unique_ptr<::gts9u::audio::SpeakerDolby> mSpeakerDolby;
++#endif
+ 
+     bool threadLoop() override;
+ 
+@@ -89,6 +106,12 @@ void WriteThread::doWrite() {
+     mStatus.retval = Result::OK;
+     mStatus.reply.written = 0;
+     if (mDataMQ->read(&mBuffer[0], availToRead)) {
++#ifdef GTS9U_SPEAKER_DOLBY
++        if (mSpeakerDolby) {
++            mSpeakerDolby->process(mBuffer.get(), availToRead,
++                                   mSpeakerRoute->isSpeaker.load(std::memory_order_relaxed));
++        }
++#endif
+         ssize_t writeResult = mStream->write(mStream, &mBuffer[0], availToRead);
+         if (writeResult >= 0) {
+             mStatus.reply.written = writeResult;
+@@ -301,7 +324,20 @@ Return<void> StreamOut::getDevices(getDevices_cb _hidl_cb) {
+ }
+ 
+ Return<Result> StreamOut::setDevices(const hidl_vec<DeviceAddress>& devices) {
+-    return mStreamCommon->setDevices(devices);
++    auto result = mStreamCommon->setDevices(devices);
++#ifdef GTS9U_SPEAKER_DOLBY
++    if (mSpeakerRoute && result.isOk() && static_cast<Result>(result) == Result::OK) {
++        const bool speaker = devices.size() != 0 &&
++                std::all_of(devices.begin(), devices.end(), [](const auto& address) {
++                    audio_devices_t type;
++                    char halAddress[AUDIO_DEVICE_MAX_ADDRESS_LEN];
++                    return CoreUtils::deviceAddressToHal(address, &type, halAddress) == OK &&
++                            type == AUDIO_DEVICE_OUT_SPEAKER;
++                });
++        mSpeakerRoute->isSpeaker.store(speaker, std::memory_order_relaxed);
++    }
++#endif
++    return result;
+ }
+ Return<void> StreamOut::getParameters(const hidl_vec<ParameterValue>& context,
+                                       const hidl_vec<hidl_string>& keys,
+@@ -410,6 +446,9 @@ Return<void> StreamOut::prepareForWriting(uint32_t frameSize, uint32_t framesCou
+         sendError(Result::INVALID_ARGUMENTS);
+         return Void();
+     }
++#ifdef GTS9U_SPEAKER_DOLBY
++    tempWriteThread->prepareSpeakerDolby(mSpeakerRoute);
++#endif
+     status = tempWriteThread->run("writer", PRIORITY_URGENT_AUDIO);
+     if (status != OK) {
+         ALOGW("failed to start writer thread: %s", strerror(-status));
+diff --git a/audio/impl/include/core/default/Device.h b/audio/impl/include/core/default/Device.h
+index f0e7afd..b7d8038 100644
+--- a/audio/impl/include/core/default/Device.h
++++ b/audio/impl/include/core/default/Device.h
+@@ -33,6 +33,10 @@
+ #include <VersionUtils.h>
+ #include <util/CoreUtils.h>
+ 
++#ifdef GTS9U_SPEAKER_DOLBY
++#include <gts9u/SpeakerDolby.h>
++#endif
++
+ namespace android {
+ namespace hardware {
+ namespace audio {
+@@ -179,6 +183,9 @@ struct Device : public IDevice, public ParametersUtil {
+     bool mIsClosed;
+     audio_hw_device_t* mDevice;
+     int mOpenedStreamsCount = 0;
++#ifdef GTS9U_SPEAKER_DOLBY
++    ::gts9u::audio::SpeakerRoutes mSpeakerRoutes;
++#endif
+ 
+     virtual ~Device();
+ 
+diff --git a/audio/impl/include/core/default/StreamOut.h b/audio/impl/include/core/default/StreamOut.h
+index ce5253f..bc74334 100644
+--- a/audio/impl/include/core/default/StreamOut.h
++++ b/audio/impl/include/core/default/StreamOut.h
+@@ -53,6 +53,11 @@ struct StreamOut : public IStreamOut {
+     typedef MessageQueue<WriteStatus, kSynchronizedReadWrite> StatusMQ;
+ 
+     StreamOut(const sp<Device>& device, audio_stream_out_t* stream);
++#ifdef GTS9U_SPEAKER_DOLBY
++    void setSpeakerRoute(std::shared_ptr<::gts9u::audio::SpeakerRoute> route) {
++        mSpeakerRoute = std::move(route);
++    }
++#endif
+ 
+     // Methods from ::android::hardware::audio::CPP_VERSION::IStream follow.
+     Return<uint64_t> getFrameSize() override;
+@@ -179,6 +184,9 @@ struct StreamOut : public IStreamOut {
+     EventFlag* mEfGroup;
+     std::atomic<bool> mStopWriteThread;
+     sp<Thread> mWriteThread;
++#ifdef GTS9U_SPEAKER_DOLBY
++    std::shared_ptr<::gts9u::audio::SpeakerRoute> mSpeakerRoute;
++#endif
+ 
+     virtual ~StreamOut();
+ 
 diff --git a/common.mk b/common.mk
-index 8758da4bc66e7a32dc6dce7440e1992c58ea7f81..27c087127bde0a7c4cf036131d563290154611a5 100644
+index 8758da4..e955fe8 100644
 --- a/common.mk
 +++ b/common.mk
-@@ -54,16 +54,17 @@ PRODUCT_COPY_FILES += \
+@@ -46,6 +46,9 @@ PRODUCT_PACKAGES += \
+ AUDIO_HAL_DIR := hardware/qcom-caf/sm8550/audio/primary-hal
+ CONFIG_HAL_SRC_DIR := $(AUDIO_HAL_DIR)/configs/kalama
+ CONFIG_PAL_SRC_DIR := $(AUDIO_HAL_DIR)/../pal/configs/kalama
++ifeq ($(strip $(SM8550_AUDIO_SPEAKER_ROUTE)),)
++SM8550_AUDIO_SPEAKER_ROUTE := $(LOCAL_PATH)/audio/audio_policy_speaker_route.xml
++endif
+ 
+ PRODUCT_COPY_FILES += \
+     $(LOCAL_PATH)/audio/audio_effects.conf:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_kalama/audio_effects.conf \
+@@ -54,16 +57,19 @@ PRODUCT_COPY_FILES += \
      $(CONFIG_HAL_SRC_DIR)/microphone_characteristics.xml:$(TARGET_COPY_OUT_VENDOR)/etc/microphone_characteristics.xml
  
  PRODUCT_COPY_FILES += \
 -    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_kalama_qssi/audio_policy_configuration.xml
 +    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_kalama_qssi/audio_policy_configuration.xml \
-+    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml
++    $(LOCAL_PATH)/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
++    $(SM8550_AUDIO_SPEAKER_ROUTE):$(TARGET_COPY_OUT_VENDOR)/etc/audio/sku_kalama_qssi/audio_policy_speaker_route.xml \
++    $(SM8550_AUDIO_SPEAKER_ROUTE):$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_speaker_route.xml
  
  PRODUCT_COPY_FILES += \
 +    frameworks/av/services/audiopolicy/config/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml \
@@ -118,7 +391,7 @@ index 8758da4bc66e7a32dc6dce7440e1992c58ea7f81..27c087127bde0a7c4cf036131d563290
      frameworks/native/data/etc/android.software.midi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.software.midi.xml
  
  # Bluetooth
-@@ -170,8 +171,9 @@ PRODUCT_PACKAGES += \
+@@ -170,8 +176,9 @@ PRODUCT_PACKAGES += \
  endif
  
  # Init
@@ -129,7 +402,7 @@ index 8758da4bc66e7a32dc6dce7440e1992c58ea7f81..27c087127bde0a7c4cf036131d563290
  
  PRODUCT_PACKAGES += \
      fstab.qcom \
-@@ -255,6 +257,7 @@ PRODUCT_SOONG_NAMESPACES += \
+@@ -255,6 +262,7 @@ PRODUCT_SOONG_NAMESPACES += \
      $(LOCAL_PATH) \
      hardware/google/interfaces \
      hardware/google/pixel \
@@ -137,8 +410,29 @@ index 8758da4bc66e7a32dc6dce7440e1992c58ea7f81..27c087127bde0a7c4cf036131d563290
      hardware/lineage/interfaces/power-libperfmgr \
      hardware/qcom-caf/common/libqti-perfd-client \
      hardware/samsung
+diff --git a/extract-files.py b/extract-files.py
+index 398eb65..e3353c8 100755
+--- a/extract-files.py
++++ b/extract-files.py
+@@ -60,6 +60,16 @@ blob_fixups: blob_fixups_user_type = {
+         .sig_replace('60 0E 40 F9 E1 03 15 AA 82 0C 80 52 E3 03 14 AA', '60 0E 40 F9 E1 03 15 AA 82 0C 80 52 30 08 0D D2'),
+     'vendor/etc/vintf/manifest/sec_c2_manifest_default0_1_0.xml': blob_fixup()
+         .regex_replace('default0', 'software'),
++    # Tracefs is mounted by platform init. These legacy scheduler nodes are
++    # absent from the current 5.15 kernel; preserve the supported tunables.
++    'vendor/etc/init/hw/init.qti.kernel.rc': blob_fixup()
++        .regex_replace(r'(?m)^    mount tracefs tracefs /sys/kernel/tracing\n', '')
++        .regex_replace(r'(?m)^    chmod 0755 /sys/kernel/tracing\n', '')
++        .regex_replace(r'(?m)^    write /dev/cpuctl/(?:foreground|top-app)/cpu\.uclamp\.sched_boost_no_override 1\n', '')
++        .regex_replace(r'(?m)^    write /dev/cpuctl/(?:background|foreground|top-app)/cpu\.uclamp\.colocate [01]\n', ''),
++    # Current rmnet modules are installed in /vendor/lib/modules, not 5.4-gki.
++    'vendor/etc/init/netmgrd.rc': blob_fixup()
++        .regex_replace(r'(?m)^    exec .* /vendor/lib/modules/5\.4-gki .*\n', ''),
+     'vendor/etc/init/vendor.qti.media.c2audio@1.0-service.rc': blob_fixup()
+         .regex_replace('.*disabled.*\n', ''),
+     ('vendor/etc/media_codecs_kalama.xml'): blob_fixup()
 diff --git a/init/Android.bp b/init/Android.bp
-index 9e935179416ca33f629dc55a770c3afbdc5a0d01..a2b7f0b4d76c332abb6b9664268e8f58031558b7 100644
+index 9e93517..a2b7f0b 100644
 --- a/init/Android.bp
 +++ b/init/Android.bp
 @@ -3,10 +3,25 @@
@@ -170,10 +464,46 @@ index 9e935179416ca33f629dc55a770c3afbdc5a0d01..a2b7f0b4d76c332abb6b9664268e8f58
  
  prebuilt_etc {
 diff --git a/init/init.qcom.rc b/init/init.qcom.rc
-index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a7f88bd06 100644
+index 6885dc5..8920945 100644
 --- a/init/init.qcom.rc
 +++ b/init/init.qcom.rc
-@@ -406,12 +406,6 @@ on post-fs-data
+@@ -66,13 +66,9 @@ import /vendor/etc/init/hw/init.target.rc
+ import /vendor/etc/init/hw/init.qcom.factory.rc
+ 
+ on early-init
+-    mount tracefs tracefs /sys/kernel/tracing
+-    chmod 0755 /sys/kernel/tracing
++    # Platform init owns the tracefs mount and its permissions.
+ 
+-  # create symlink for vendor mount points
+-    symlink /vendor/firmware_mnt /firmware
+-    symlink /vendor/bt_firmware /bt_firmware
+-    symlink /vendor/dsp /dsp
++    # Firmware loaders use the existing /vendor paths on the read-only root.
+ 
+   # Change ownership of sysfs power control node
+     chown system graphics /sys/class/drm/card0/device/power/control
+@@ -89,9 +85,7 @@ on early-init
+ 
+ on init
+ 
+-    # Support legacy paths
+-    symlink /sdcard /mnt/sdcard
+-    symlink /sdcard /storage/sdcard0
++    # Platform init provides the emulated-storage symlinks.
+ 
+     # Create cgroup mount point for memory
+     mkdir /sys/fs/cgroup/memory/bg 0750 root system
+@@ -107,7 +101,7 @@ on early-boot
+     setrlimit 8 65536 65536
+     exec u:r:vendor_qti_init_shell:s0 -- /vendor/bin/init.qcom.early_boot.sh
+     exec u:r:vendor_qti_init_shell:s0 -- /vendor/bin/init.qti.can.sh
+-    setprop ro.sf.lcd_density ${vendor.display.lcd_density}
++    # ro.sf.lcd_density is supplied by the product build properties.
+ 
+     chown system system /mnt/vendor/persist/data/pfm/licenses
+     chmod 0775 /mnt/vendor/persist/data/pfm/licenses
+@@ -406,12 +400,6 @@ on post-fs-data
      #Create dir for TUI
      mkdir /data/vendor/tui 0700 system drmrpc
  
@@ -186,7 +516,19 @@ index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a
  service vendor.ssr_setup /system/vendor/bin/ssr_setup
      oneshot
      disabled
-@@ -537,19 +531,6 @@ service vendor.move_wifi_data /system/bin/move_wifi_data.sh
+@@ -499,9 +487,8 @@ on property:persist.debug.trace=1
+ on property:vendor.media.target.version=*
+     setprop vendor.sys.media.target.version ${vendor.media.target.version}
+ 
+-on property:vendor.media.target_variant=*
+-    setprop ro.media.xml_variant.codecs ${vendor.media.target_variant}
+-    setprop ro.media.xml_variant.codecs_performance ${vendor.media.target_variant}
++# Codec XML variants are fixed by the product build properties. Do not
++# rewrite read-only properties when the vendor target property is published.
+ 
+ service qcom-c_core-sh  /vendor/bin/init.qcom.class_core.sh
+     class core
+@@ -537,19 +524,6 @@ service vendor.move_wifi_data /system/bin/move_wifi_data.sh
      disabled
      oneshot
  
@@ -206,7 +548,7 @@ index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a
  service cnss-daemon /system/vendor/bin/cnss-daemon -n -l
      class late_start
      user system
-@@ -560,18 +541,6 @@ on property:sys.shutdown.requested=*
+@@ -560,18 +534,6 @@ on property:sys.shutdown.requested=*
      write /sys/kernel/shutdown_wlan/shutdown 1
      stop cnss-daemon
  
@@ -225,7 +567,7 @@ index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a
  service loc_launcher /system/vendor/bin/loc_launcher
      class late_start
      user gps
-@@ -613,11 +582,6 @@ on property:sys.boot_completed=1
+@@ -613,11 +575,6 @@ on property:sys.boot_completed=1
  on property:ro.vendor.ril.mbn_copy_completed=1
      write /data/vendor/radio/copy_complete 1
  
@@ -237,7 +579,7 @@ index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a
  service vendor.atfwd /vendor/bin/ATFWD-daemon
      class late_start
      user system
-@@ -724,11 +688,6 @@ service vendor.LKCore-rel /vendor/bin/LKCore
+@@ -724,11 +681,6 @@ service vendor.LKCore-rel /vendor/bin/LKCore
      user system
      group system log diag
  
@@ -250,13 +592,26 @@ index 6885dc5595c6af05d562b9c34fcc7fee2bdb259b..36e4a901fe7bc69b788547bc6a05dd1a
      #Enable UFS clock scaling back
      write /sys/bus/platform/devices/1d84000.ufshc/clkscale_enable 1
 diff --git a/init/init.target.rc b/init/init.target.rc
-index 2199c0d1b8b096deb44d78fb1f64de740a55880b..e27602bdc359c8b663bc89992c1ba86f6907ff07 100644
+index 2199c0d..326f472 100644
 --- a/init/init.target.rc
 +++ b/init/init.target.rc
-@@ -89,6 +89,15 @@ on fs
+@@ -67,7 +67,7 @@ import /vendor/etc/init/hw/init.${ro.product.vendor.device}.rc
+ import /vendor/etc/init/hw/init.${ro.product.vendor.name}.rc
+ 
+ on early-init
+-    write /proc/sys/kernel/printk_devkmsg ratelimited
++    # printk.devkmsg is fixed by the BoardConfig kernel command line.
+     export MEMTAG_OPTIONS off
+ 
+ on init
+@@ -89,17 +89,23 @@ on fs
      mkdir /mnt/vendor/persist/secnvm 0770 system system
      mkdir /mnt/vendor/persist/data 0700 system system
  
+-on post-fs
+-    #Execute virtualization manager
+-    enable vendor.qvirtmgr
+-    start  vendor.qvirtmgr
 +# Start the tablet's KeyMint/SPU initialization while remaining modules load.
 +# EFS and firmware are mounted by the preceding fs action.
 +on fs && property:ro.product.vendor.device=gts9uwifi
@@ -265,11 +620,9 @@ index 2199c0d1b8b096deb44d78fb1f64de740a55880b..e27602bdc359c8b663bc89992c1ba86f
 +    chown system system /mnt/vendor/efs/DAK/gakkeybox
 +    chmod 0644 /mnt/vendor/efs/DAK/gakkeybox
 +    start vendor.keymint-default
-+
- on post-fs
-     #Execute virtualization manager
-     enable vendor.qvirtmgr
-@@ -99,7 +108,9 @@ on late-fs
+ 
+ on late-fs
+     mount_all /vendor/etc/fstab.qcom --late
  
  on post-fs-data
      mkdir /vendor/data/tombstones 0771 system system
@@ -281,7 +634,7 @@ index 2199c0d1b8b096deb44d78fb1f64de740a55880b..e27602bdc359c8b663bc89992c1ba86f
  
  on early-boot
 diff --git a/init/ueventd-odm.rc b/init/ueventd-odm.rc
-index bf72bcb74a60fe7cc0ad32321b92a142c9477271..6dfa032b1f38d878185cb19cf17261f53e0d3345 100644
+index bf72bcb..6dfa032 100644
 --- a/init/ueventd-odm.rc
 +++ b/init/ueventd-odm.rc
 @@ -551,3 +551,12 @@ external_firmware_handler /devices/platform/soc/soc:gh-secure-vm-loader@0/firmwa
@@ -298,7 +651,7 @@ index bf72bcb74a60fe7cc0ad32321b92a142c9477271..6dfa032b1f38d878185cb19cf17261f5
 +parallel_restorecon_dir /sys/devices/platform
 +parallel_restorecon_dir /sys/devices/platform/soc
 diff --git a/libshims/libhypervintf/libhypervintf.cpp b/libshims/libhypervintf/libhypervintf.cpp
-index 68c2d41cf3bc98f16d8a3f209b87471484d9937f..bfdbaa829529bcd41559a46a26e022bd45e15319 100644
+index 68c2d41..bfdbaa8 100644
 --- a/libshims/libhypervintf/libhypervintf.cpp
 +++ b/libshims/libhypervintf/libhypervintf.cpp
 @@ -7,10 +7,15 @@
@@ -335,8 +688,18 @@ index 68c2d41cf3bc98f16d8a3f209b87471484d9937f..bfdbaa829529bcd41559a46a26e022bd
  void hyper_setProcName(std::string) {
  }
  
+diff --git a/media/media_codecs.xml b/media/media_codecs.xml
+index ba76bdc..495cb63 100644
+--- a/media/media_codecs.xml
++++ b/media/media_codecs.xml
+@@ -1,5 +1,4 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <MediaCodecs>
+     <Include href="media_codecs_kalama.xml" />
+-    <Include href="media_codecs_dolby_audio.xml" />
+ </MediaCodecs>
 diff --git a/overlay/FrameworksResCommon/res/values/config.xml b/overlay/FrameworksResCommon/res/values/config.xml
-index 16c472d7787c1e26a12162b1b2cca1aeec477865..bb4795d05c340fc2beaa00557976c4c3cfa0a20e 100644
+index 16c472d..bb4795d 100644
 --- a/overlay/FrameworksResCommon/res/values/config.xml
 +++ b/overlay/FrameworksResCommon/res/values/config.xml
 @@ -20,6 +20,9 @@
@@ -403,7 +766,7 @@ index 16c472d7787c1e26a12162b1b2cca1aeec477865..bb4795d05c340fc2beaa00557976c4c3
           autodetected from the Configuration. -->
      <bool name="config_showNavigationBar">true</bool>
 diff --git a/proprietary-files.txt b/proprietary-files.txt
-index b85b713bfa799970b457ff796c3b9d76cd31a40e..7ef6546d595940fc5528cc47c11b013e69e59008 100644
+index b85b713..7ef6546 100644
 --- a/proprietary-files.txt
 +++ b/proprietary-files.txt
 @@ -111,7 +111,6 @@ vendor/lib64/soundfx/libquasar.so
@@ -440,7 +803,7 @@ index b85b713bfa799970b457ff796c3b9d76cd31a40e..7ef6546d595940fc5528cc47c11b013e
 +vendor/bin/hw/macloader
 diff --git a/sepolicy/private/compat/202504/202504.ignore.cil b/sepolicy/private/compat/202504/202504.ignore.cil
 new file mode 100644
-index 0000000000000000000000000000000000000000..6db8e1cb0bc47a35beb6600122b93269a85ddef3
+index 0000000..6db8e1c
 --- /dev/null
 +++ b/sepolicy/private/compat/202504/202504.ignore.cil
 @@ -0,0 +1,10 @@
@@ -455,7 +818,7 @@ index 0000000000000000000000000000000000000000..6db8e1cb0bc47a35beb6600122b93269
 +    vendor_securehw_prop
 +    vendor_securenvm_prop))
 diff --git a/sepolicy/vendor/file.te b/sepolicy/vendor/file.te
-index 094e58736f436b05aa510e0b8c4e8b1784b57116..191014d8e174056d9d67ffb7f20c7f2c98fea8a0 100644
+index 094e587..191014d 100644
 --- a/sepolicy/vendor/file.te
 +++ b/sepolicy/vendor/file.te
 @@ -80,3 +80,7 @@ type sysfs_fingerprint_pos, sysfs_type, fs_type;
@@ -467,10 +830,19 @@ index 094e58736f436b05aa510e0b8c4e8b1784b57116..191014d8e174056d9d67ffb7f20c7f2c
 +type sysfs_wifi, fs_type, sysfs_type;
 +type wifi_efs_file, file_type;
 diff --git a/sepolicy/vendor/file_contexts b/sepolicy/vendor/file_contexts
-index b19b170efd2ddf5b580501ae7ddef5407cdb50aa..cbc0df78f8b1f1bc9c04c9f78eea0cda00681207 100644
+index b19b170..4ad2a52 100644
 --- a/sepolicy/vendor/file_contexts
 +++ b/sepolicy/vendor/file_contexts
-@@ -108,3 +108,6 @@
+@@ -76,8 +76,6 @@
+ 
+ # Touchscreen
+ /sys/devices/platform/soc/ac0000.qcom,qupv3_1_geni_se/a90000.spi/spi_master/spi[0-9]/spi[0-9].[0-9]/wakeup(/.*)? u:object_r:sysfs_wakeup:s0
+-/sys/devices/platform/soc/.*(/sm5714-fuelgauge|/sm5714-charger)/power_supply/.*       u:object_r:vendor_sysfs_battery:s0
+-/sys/devices/platform/soc/[a-f0-9]+\.qcom,qupv3_i2c_geni_se/[a-f0-9]+\.i2c/i2c-[0-9]+/[0-9]+-[0-9]+/power_supply/.+   u:object_r:sysfs_battery:s0
+ 
+ # UFS Devices
+ /dev/block/platform/soc/1d84000.ufshc/by-name/bluetooth      u:object_r:vendor_modem_block_device:s0
+@@ -108,3 +106,6 @@
  /(vendor|system/vendor)/bin/hw/vendor\.samsung\.hardware\.thermal@1\.0-service                               u:object_r:hal_thermal_default_exec:s0
  /(vendor|system/vendor)/bin/secril_config_svc                                                                u:object_r:vendor_secril_config_svc_exec:s0
  /(vendor|system/vendor)/bin/hw/vendor\.samsung\.hardware\.spen-service                                       u:object_r:hal_samsung_spen_default_exec:s0
@@ -478,7 +850,7 @@ index b19b170efd2ddf5b580501ae7ddef5407cdb50aa..cbc0df78f8b1f1bc9c04c9f78eea0cda
 +/mnt/vendor/efs/wifi(/.*)? u:object_r:wifi_efs_file:s0
 +/(vendor|system/vendor)/bin/hw/macloader u:object_r:macloader_exec:s0
 diff --git a/sepolicy/vendor/genfs_contexts b/sepolicy/vendor/genfs_contexts
-index 88d7b3ec4d5de821f0a42352bdc1588c00082e73..1683cc12802c766d7453f8d38c3511ceca30b679 100644
+index 88d7b3e..1683cc1 100644
 --- a/sepolicy/vendor/genfs_contexts
 +++ b/sepolicy/vendor/genfs_contexts
 @@ -175,3 +175,6 @@ genfscon sysfs "/class/lcd/panel/mask_brightness"                             u:
@@ -488,9 +860,18 @@ index 88d7b3ec4d5de821f0a42352bdc1588c00082e73..1683cc12802c766d7453f8d38c3511ce
 +
 +# Samsung CNSS MAC-loader interface.
 +genfscon sysfs /wifi u:object_r:sysfs_wifi:s0
+diff --git a/sepolicy/vendor/kernel.te b/sepolicy/vendor/kernel.te
+new file mode 100644
+index 0000000..aecd9d2
+--- /dev/null
++++ b/sepolicy/vendor/kernel.te
+@@ -0,0 +1,3 @@
++# cfg80211 creates its regulatory trust keyring while vendor_modprobe loads
++# the module. Its asynchronous firmware verifier runs in the kernel domain.
++allow kernel vendor_modprobe:key search;
 diff --git a/sepolicy/vendor/macloader.te b/sepolicy/vendor/macloader.te
 new file mode 100644
-index 0000000000000000000000000000000000000000..5ebf4c23d72104d4bf501a6857b462f3d32064bf
+index 0000000..5ebf4c2
 --- /dev/null
 +++ b/sepolicy/vendor/macloader.te
 @@ -0,0 +1,14 @@
@@ -509,7 +890,7 @@ index 0000000000000000000000000000000000000000..5ebf4c23d72104d4bf501a6857b462f3
 +allow macloader wifi_efs_file:file create_file_perms;
 +set_prop(macloader, vendor_wifi_prop)
 diff --git a/sepolicy/vendor/property_contexts b/sepolicy/vendor/property_contexts
-index 32c5824077237c16bba1858cc6d2fd8c09e030f0..4016b46a2d6ef50bbc379268cfddcd3077e80a6c 100644
+index 32c5824..4016b46 100644
 --- a/sepolicy/vendor/property_contexts
 +++ b/sepolicy/vendor/property_contexts
 @@ -27,3 +27,7 @@ vendor.sys.qseecomd.    u:object_r:vendor_qseecomd_prop:s0
@@ -520,8 +901,20 @@ index 32c5824077237c16bba1858cc6d2fd8c09e030f0..4016b46a2d6ef50bbc379268cfddcd30
 +# Samsung Wi-Fi provisioning.
 +vendor.wifi. u:object_r:vendor_wifi_prop:s0
 +ro.vendor.wifi. u:object_r:vendor_wifi_prop:s0
+diff --git a/sepolicy/vendor/spdaemon.te b/sepolicy/vendor/spdaemon.te
+index 3b8c3cd..a68e260 100644
+--- a/sepolicy/vendor/spdaemon.te
++++ b/sepolicy/vendor/spdaemon.te
+@@ -1,2 +1,7 @@
+ # Allow vendor_spdaemon to find hal_system_suspend_service
+ allow vendor_spdaemon hal_system_suspend_service:service_manager find;
++
++# The AIDL client receives servicemanager notifications and acquires wakelocks
++# through ISystemSuspend. Finding the service alone does not permit these calls.
++binder_use(vendor_spdaemon)
++binder_call(vendor_spdaemon, system_suspend_server)
 diff --git a/sepolicy/vendor/tee.te b/sepolicy/vendor/tee.te
-index 63510542cda948bc23355d2493601fd044d40d6b..b14e55c2dc09a88d0a892e5096d008aa6395361c 100644
+index 6351054..b14e55c 100644
 --- a/sepolicy/vendor/tee.te
 +++ b/sepolicy/vendor/tee.te
 @@ -6,6 +6,11 @@ allow tee sec_efs_file:file create_file_perms;
@@ -536,8 +929,18 @@ index 63510542cda948bc23355d2493601fd044d40d6b..b14e55c2dc09a88d0a892e5096d008aa
  # Allow tee to access kmsg device
  allow tee kmsg_device:chr_file rw_file_perms;
  
+diff --git a/sepolicy/vendor/vendor_hal_usb_qti.te b/sepolicy/vendor/vendor_hal_usb_qti.te
+index 454d209..86cbe61 100644
+--- a/sepolicy/vendor/vendor_hal_usb_qti.te
++++ b/sepolicy/vendor/vendor_hal_usb_qti.te
+@@ -1 +1,5 @@
++# Resolve /sys/class/power_supply/usb and read its type for charger status.
++# Keep access to the Samsung supply read-only; its wakeup labels are separate.
++allow vendor_hal_usb_qti sysfs_batteryinfo:dir search;
+ allow vendor_hal_usb_qti vendor_sysfs_battery:dir search;
++allow vendor_hal_usb_qti vendor_sysfs_battery:file r_file_perms;
 diff --git a/sepolicy/vendor/vendor_init.te b/sepolicy/vendor/vendor_init.te
-index a20426491d977d0d63b1496d087ba410118eaac8..7f2e1972abbfb4fec37fe2296620db5facd801b5 100644
+index a204264..7f2e197 100644
 --- a/sepolicy/vendor/vendor_init.te
 +++ b/sepolicy/vendor/vendor_init.te
 @@ -8,3 +8,6 @@ allow vendor_init vendor_ssr_prop:property_service set;
@@ -548,7 +951,7 @@ index a20426491d977d0d63b1496d087ba410118eaac8..7f2e1972abbfb4fec37fe2296620db5f
 +# Camera provider init scripts initialize UniHAL and worker scheduling properties.
 +set_prop(vendor_init, vendor_camera_prop)
 diff --git a/sepolicy/vendor/vendor_time_daemon.te b/sepolicy/vendor/vendor_time_daemon.te
-index 69d429a13d6e74f467d877cd3f116b14c904f083..c02ec88e2d4801f02fb8822753b7ad358c1986df 100644
+index 69d429a..c02ec88 100644
 --- a/sepolicy/vendor/vendor_time_daemon.te
 +++ b/sepolicy/vendor/vendor_time_daemon.te
 @@ -2,3 +2,8 @@ allow vendor_time_daemon rild:dir search;

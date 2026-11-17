@@ -1,5 +1,5 @@
 diff --git a/Android.bp b/Android.bp
-index 167e8cb4105eaeaf06ffb3c871b5b40fb77bdd87..750c8548f83882cc359e46a43810d640158cc6a9 100644
+index 167e8cb..750c854 100644
 --- a/Android.bp
 +++ b/Android.bp
 @@ -6,6 +6,13 @@
@@ -28,7 +28,7 @@ index 167e8cb4105eaeaf06ffb3c871b5b40fb77bdd87..750c8548f83882cc359e46a43810d640
 +    visibility: ["//visibility:public"],
 +}
 diff --git a/BoardConfig.mk b/BoardConfig.mk
-index 0d7d10008b0c207ba5871551abd55bc24957110f..195755aa39c4fc6fb30b2ec2f728bb1bef0004f3 100644
+index 0d7d100..195755a 100644
 --- a/BoardConfig.mk
 +++ b/BoardConfig.mk
 @@ -12,6 +12,9 @@ TARGET_IS_TABLET := true
@@ -62,9 +62,450 @@ index 0d7d10008b0c207ba5871551abd55bc24957110f..195755aa39c4fc6fb30b2ec2f728bb1b
 +# SEPolicy
  PRODUCT_PRIVATE_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/private
 +BOARD_VENDOR_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
+diff --git a/audio/Android.mk b/audio/Android.mk
+new file mode 100644
+index 0000000..6298ff5
+--- /dev/null
++++ b/audio/Android.mk
+@@ -0,0 +1,12 @@
++# SPDX-License-Identifier: Apache-2.0
++
++LOCAL_PATH := $(call my-dir)
++include $(CLEAR_VARS)
++LOCAL_MODULE := Gts9uAudioPackageOverrides
++LOCAL_MODULE_CLASS := APPS
++LOCAL_MODULE_TAGS := optional
++LOCAL_OVERRIDES_PACKAGES += Music MusicFX AudioFX
++LOCAL_UNINSTALLABLE_MODULE := true
++LOCAL_CERTIFICATE := PRESIGNED
++LOCAL_SRC_FILES := /dev/null
++include $(BUILD_PREBUILT)
+diff --git a/audio/audio_policy_speaker_route.xml b/audio/audio_policy_speaker_route.xml
+new file mode 100644
+index 0000000..62a22fd
+--- /dev/null
++++ b/audio/audio_policy_speaker_route.xml
+@@ -0,0 +1,3 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- SPDX-License-Identifier: Apache-2.0 -->
++<route type="mix" sink="Speaker" sources="primary output,raw,deep_buffer,voip_rx,haptics output"/>
+diff --git a/audio/dolby/Android.bp b/audio/dolby/Android.bp
+new file mode 100644
+index 0000000..dbbe04a
+--- /dev/null
++++ b/audio/dolby/Android.bp
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: Apache-2.0
++
++cc_library_static {
++    name: "libgts9u_speaker_dolby",
++    vendor: true,
++    srcs: ["SpeakerDolby.cpp"],
++    export_include_dirs: ["include"],
++    header_libs: [
++        "libaudio_system_headers",
++        "libaudioutils_headers",
++        "libhardware_headers",
++    ],
++    shared_libs: [
++        "libaudioutils",
++        "libdl",
++        "liblog",
++    ],
++    cflags: [
++        "-Wall",
++        "-Wextra",
++        "-Werror",
++    ],
++    visibility: ["//device/samsung/sm8550-common/audio/impl:__pkg__"],
++}
+diff --git a/audio/dolby/SpeakerDolby.cpp b/audio/dolby/SpeakerDolby.cpp
+new file mode 100644
+index 0000000..3ea29d5
+--- /dev/null
++++ b/audio/dolby/SpeakerDolby.cpp
+@@ -0,0 +1,298 @@
++// SPDX-License-Identifier: Apache-2.0
++#define LOG_TAG "Gts9uSpeakerDolby"
++
++#include <gts9u/SpeakerDolby.h>
++
++#include <algorithm>
++#include <cmath>
++#include <dlfcn.h>
++#include <iterator>
++
++#include <audio_utils/format.h>
++#include <log/log.h>
++
++namespace gts9u::audio {
++namespace {
++constexpr int kDisabled = -1;
++constexpr uint32_t kProfile = 0;
++constexpr uint32_t kProfileEnabled = 19;
++constexpr effect_uuid_t kDolbyUuid = {
++        0x6ab06da4, 0xc516, 0x4611, 0x8166, {0x45, 0x27, 0x99, 0x21, 0x85, 0x39}};
++std::atomic<int> gProfile{kDisabled};
++
++int command(effect_handle_t effect, uint32_t code, uint32_t length = 0, void* data = nullptr) {
++    int32_t result = 0;
++    uint32_t replySize = sizeof(result);
++    int status = (*effect)->command(effect, code, length, data, &replySize, &result);
++    return status == 0 ? result : status;
++}
++
++int setParameter(effect_handle_t effect, uint32_t key, int32_t value) {
++    struct {
++        int32_t status;
++        uint32_t parameterSize;
++        uint32_t valueSize;
++        uint32_t key;
++        int32_t value;
++    } parameter{0, sizeof(key), sizeof(value), key, value};
++    return command(effect, EFFECT_CMD_SET_PARAM, sizeof(parameter), &parameter);
++}
++
++audio_effect_library_t* loadLibrary() {
++    constexpr const char* path = sizeof(void*) == 8 ? "/vendor/lib64/soundfx/libswdap.so"
++                                                    : "/vendor/lib/soundfx/libswdap.so";
++    // Keep the library loaded for the lifetime of the audio HAL process.
++    static audio_effect_library_t* library = [] {
++        void* handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
++        if (handle == nullptr) {
++            ALOGE("Cannot load Dolby speaker engine: %s", dlerror());
++            return static_cast<audio_effect_library_t*>(nullptr);
++        }
++        auto* api = static_cast<audio_effect_library_t*>(
++                dlsym(handle, AUDIO_EFFECT_LIBRARY_INFO_SYM_AS_STR));
++        if (api == nullptr || api->tag != AUDIO_EFFECT_LIBRARY_TAG ||
++            api->create_effect == nullptr || api->release_effect == nullptr) {
++            ALOGE("Invalid Dolby speaker effect library");
++            dlclose(handle);
++            return static_cast<audio_effect_library_t*>(nullptr);
++        }
++        return api;
++    }();
++    return library;
++}
++}  // namespace
++
++bool setDolbyProfile(std::string_view value) {
++    if (value == "-1") {
++        gProfile.store(kDisabled, std::memory_order_relaxed);
++        return true;
++    }
++    if (value.size() != 1 || value.front() < '0' || value.front() > '3') return false;
++    gProfile.store(value.front() - '0', std::memory_order_relaxed);
++    return true;
++}
++
++std::shared_ptr<SpeakerRoute> SpeakerRoutes::open(audio_io_handle_t io, audio_devices_t device) {
++    auto route = std::make_shared<SpeakerRoute>(device == AUDIO_DEVICE_OUT_SPEAKER);
++    std::lock_guard lock(mMutex);
++    for (auto it = mOutputs.begin(); it != mOutputs.end();) {
++        it = it->second.route.expired() ? mOutputs.erase(it) : std::next(it);
++    }
++    mOutputs.insert_or_assign(io, Output{route});
++    return route;
++}
++
++void SpeakerRoutes::updatePatch(audio_patch_handle_t previous, audio_patch_handle_t patch,
++                                size_t sourceCount, const audio_port_config* sources,
++                                size_t sinkCount, const audio_port_config* sinks) {
++    if (sourceCount == 0 || sources[0].type != AUDIO_PORT_TYPE_MIX ||
++        sources[0].role != AUDIO_PORT_ROLE_SOURCE) return;
++    const auto io = sources[0].ext.mix.handle;
++    const bool speaker = sinkCount != 0 &&
++            std::all_of(sinks, sinks + sinkCount, [](const auto& sink) {
++                return sink.type == AUDIO_PORT_TYPE_DEVICE &&
++                        sink.ext.device.type == AUDIO_DEVICE_OUT_SPEAKER;
++            });
++
++    std::lock_guard lock(mMutex);
++    for (auto& [outputIo, output] : mOutputs) {
++        if (outputIo == io) {
++            output.patch = patch;
++            if (auto route = output.route.lock()) {
++                route->isSpeaker.store(speaker, std::memory_order_relaxed);
++            }
++        } else if (previous != AUDIO_PATCH_HANDLE_NONE && output.patch == previous) {
++            output.patch = AUDIO_PATCH_HANDLE_NONE;
++            if (auto route = output.route.lock()) {
++                route->isSpeaker.store(false, std::memory_order_relaxed);
++            }
++        }
++    }
++}
++
++void SpeakerRoutes::releasePatch(audio_patch_handle_t patch) {
++    if (patch == AUDIO_PATCH_HANDLE_NONE) return;
++    std::lock_guard lock(mMutex);
++    for (auto& entry : mOutputs) {
++        auto& output = entry.second;
++        if (output.patch != patch) continue;
++        output.patch = AUDIO_PATCH_HANDLE_NONE;
++        if (auto route = output.route.lock()) {
++            route->isSpeaker.store(false, std::memory_order_relaxed);
++        }
++    }
++}
++
++SpeakerDolby::~SpeakerDolby() {
++    if (mEffect != nullptr) mLibrary->release_effect(mEffect);
++}
++
++bool SpeakerDolby::configure(audio_format_t format, audio_channel_mask_t channels,
++                             uint32_t sampleRate) {
++    switch (format) {
++        case AUDIO_FORMAT_PCM_16_BIT:
++        case AUDIO_FORMAT_PCM_32_BIT:
++        case AUDIO_FORMAT_PCM_8_24_BIT:
++        case AUDIO_FORMAT_PCM_24_BIT_PACKED:
++        case AUDIO_FORMAT_PCM_FLOAT:
++            break;
++        default:
++            return false;
++    }
++
++    const auto audibleMask = static_cast<audio_channel_mask_t>(channels & ~AUDIO_CHANNEL_HAPTIC_ALL);
++    if ((audibleMask != AUDIO_CHANNEL_OUT_MONO && audibleMask != AUDIO_CHANNEL_OUT_STEREO) ||
++        sampleRate == 0) return false;
++
++    mLibrary = loadLibrary();
++    if (mLibrary == nullptr) return false;
++    const int status = mLibrary->create_effect(&kDolbyUuid, AUDIO_SESSION_OUTPUT_STAGE,
++                                               AUDIO_IO_HANDLE_NONE, &mEffect);
++    if (status != 0 || mEffect == nullptr) {
++        mEffect = nullptr;
++        ALOGE("Cannot create Dolby speaker effect: %d", status);
++        return false;
++    }
++
++    effect_config_t config{};
++    config.inputCfg.samplingRate = sampleRate;
++    config.inputCfg.channels = AUDIO_CHANNEL_OUT_STEREO;
++    config.inputCfg.format = AUDIO_FORMAT_PCM_FLOAT;
++    config.inputCfg.accessMode = EFFECT_BUFFER_ACCESS_READ;
++    config.inputCfg.mask = EFFECT_CONFIG_ALL;
++    config.outputCfg = config.inputCfg;
++    config.outputCfg.accessMode = EFFECT_BUFFER_ACCESS_WRITE;
++    uint32_t speaker = AUDIO_DEVICE_OUT_SPEAKER;
++    if (command(mEffect, EFFECT_CMD_INIT) != 0 ||
++        command(mEffect, EFFECT_CMD_SET_CONFIG, sizeof(config), &config) != 0 ||
++        command(mEffect, EFFECT_CMD_SET_DEVICE, sizeof(speaker), &speaker) != 0) {
++        ALOGE("Cannot configure Dolby speaker effect for %u Hz", sampleRate);
++        return false;
++    }
++    mFormat = format;
++    mSampleRate = sampleRate;
++    mAudioChannels = audio_channel_count_from_out_mask(audibleMask);
++    mFrameSize = audio_bytes_per_frame(audio_channel_count_from_out_mask(channels), format);
++    mFadeFrames = std::max(1u, sampleRate / 20);
++    return true;
++}
++
++bool SpeakerDolby::applyProfile(int profile) {
++    const bool wasEnabled = mActiveProfile != kDisabled;
++    if (setParameter(mEffect, kProfile, profile) != 0 ||
++        setParameter(mEffect, kProfileEnabled, 1) != 0 ||
++        (!wasEnabled && command(mEffect, EFFECT_CMD_ENABLE) != 0)) {
++        ALOGE("Cannot activate Dolby speaker profile %d", profile);
++        if (wasEnabled) command(mEffect, EFFECT_CMD_DISABLE);
++        mActiveProfile = kDisabled;
++        mWetFrames = 0;
++        return false;
++    }
++    mActiveProfile = profile;
++    ALOGI("Using Dolby speaker profile %d at %u Hz", profile, mSampleRate);
++    return true;
++}
++
++void SpeakerDolby::process(void* data, size_t bytes, bool routedToSpeaker) {
++    if (mEffect == nullptr || mFrameSize == 0 || bytes == 0 || bytes % mFrameSize != 0) return;
++
++    if (!routedToSpeaker) {
++        if (mActiveProfile != kDisabled) command(mEffect, EFFECT_CMD_DISABLE);
++        mActiveProfile = kDisabled;
++        mRequestedProfile = kDisabled;
++        mWetFrames = 0;
++        return;
++    }
++
++    const int profile = gProfile.load(std::memory_order_relaxed);
++    if (profile != mRequestedProfile) {
++        mRequestedProfile = profile;
++        if (profile != kDisabled && !applyProfile(profile)) return;
++    }
++    if (mActiveProfile == kDisabled) return;
++    const bool fadingOut = profile == kDisabled;
++    auto* samples = static_cast<uint8_t*>(data);
++    size_t frames = bytes / mFrameSize;
++    while (frames > 0) {
++        const size_t block = std::min(frames, kBlockFrames);
++        processBlock(samples, block, fadingOut);
++        samples += block * mFrameSize;
++        frames -= block;
++        if (fadingOut && mWetFrames == 0) {
++            command(mEffect, EFFECT_CMD_DISABLE);
++            mActiveProfile = kDisabled;
++            mGain = 1.0f;
++            break;
++        }
++    }
++}
++
++void SpeakerDolby::processBlock(uint8_t* data, size_t frames, bool fadingOut) {
++    const size_t sampleBytes = audio_bytes_per_sample(mFormat);
++    const bool packedStereo = mAudioChannels == 2 && mFrameSize == 2 * sampleBytes;
++    if (packedStereo) {
++        memcpy_by_audio_format(mDry.data(), AUDIO_FORMAT_PCM_FLOAT, data, mFormat, frames * 2);
++    } else {
++        // Only copy audible samples. Haptic channels remain byte-for-byte intact.
++        for (size_t frame = 0; frame < frames; ++frame) {
++            float* stereo = &mDry[frame * 2];
++            memcpy_by_audio_format(stereo, AUDIO_FORMAT_PCM_FLOAT, data + frame * mFrameSize,
++                                   mFormat, mAudioChannels);
++            if (mAudioChannels == 1) stereo[1] = stereo[0];
++        }
++    }
++
++    float inputPower = 0.0f;
++    for (size_t i = 0; i < frames * 2; ++i) inputPower += mDry[i] * mDry[i];
++    audio_buffer_t input{.frameCount = frames, .f32 = mDry.data()};
++    audio_buffer_t output{.frameCount = frames, .f32 = mWet.data()};
++    if ((*mEffect)->process(mEffect, &input, &output) != 0) {
++        mWetFrames = 0;
++        mGain = 1.0f;
++        return;
++    }
++
++    float outputPower = 0.0f;
++    for (size_t i = 0; i < frames * 2; ++i) outputPower += mWet[i] * mWet[i];
++    if (!std::isfinite(outputPower) || !std::isfinite(inputPower)) {
++        mWetFrames = 0;
++        mGain = 1.0f;
++        return;
++    }
++
++    // Drain the engine during silence without writing its buffered tail or
++    // resetting the gain used when sound resumes.
++    if (inputPower == 0.0f) {
++        if (fadingOut) mWetFrames -= std::min<size_t>(mWetFrames, frames);
++        return;
++    }
++
++    // Volume is already present in this PCM. Bound the wet block's energy to
++    // the dry block's energy so DAX's leveler cannot raise a quiet media stream.
++    // Recover attenuation gradually when DAX's gain falls.
++    const float ceiling = outputPower > inputPower ? std::sqrt(inputPower / outputPower) : 1.0f;
++    const float recovery = std::min(1.0f, static_cast<float>(frames) / (mSampleRate * 0.15f));
++    mGain = std::min(ceiling, mGain + (1.0f - mGain) * recovery);
++    for (size_t frame = 0; frame < frames; ++frame) {
++        if (fadingOut) {
++            if (mWetFrames > 0) --mWetFrames;
++        } else if (mWetFrames < mFadeFrames) {
++            ++mWetFrames;
++        }
++        const float mix = static_cast<float>(mWetFrames) / mFadeFrames;
++        const size_t left = frame * 2;
++        for (size_t i = left; i < left + 2; ++i) {
++            mWet[i] = std::clamp(mDry[i] * (1.0f - mix) + mWet[i] * (mix * mGain), -1.0f, 1.0f);
++        }
++        if (!packedStereo) {
++            if (mAudioChannels == 1) mWet[left] = 0.5f * (mWet[left] + mWet[left + 1]);
++            memcpy_by_audio_format(data + frame * mFrameSize, mFormat, mWet.data() + left,
++                                   AUDIO_FORMAT_PCM_FLOAT, mAudioChannels);
++        }
++    }
++    if (packedStereo) {
++        memcpy_by_audio_format(data, mFormat, mWet.data(), AUDIO_FORMAT_PCM_FLOAT, frames * 2);
++    }
++}
++
++}  // namespace gts9u::audio
+diff --git a/audio/dolby/include/gts9u/SpeakerDolby.h b/audio/dolby/include/gts9u/SpeakerDolby.h
+new file mode 100644
+index 0000000..c5c52e4
+--- /dev/null
++++ b/audio/dolby/include/gts9u/SpeakerDolby.h
+@@ -0,0 +1,74 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <memory>
++#include <mutex>
++#include <string_view>
++#include <unordered_map>
++
++#include <hardware/audio_effect.h>
++#include <system/audio.h>
++
++namespace gts9u::audio {
++
++inline constexpr char kDolbyProfileParameter[] = "gts9u_speaker_dolby_profile";
++bool setDolbyProfile(std::string_view value);
++
++struct SpeakerRoute {
++    explicit SpeakerRoute(bool speaker) : isSpeaker(speaker) {}
++    std::atomic<bool> isSpeaker;
++};
++
++// Routing is maintained by the HAL's audio patches. The writer only reads its
++// own atomic route, so sample processing never takes the patch-tracking mutex.
++class SpeakerRoutes {
++  public:
++    std::shared_ptr<SpeakerRoute> open(audio_io_handle_t io, audio_devices_t device);
++    void updatePatch(audio_patch_handle_t previous, audio_patch_handle_t patch,
++                     size_t sourceCount, const audio_port_config* sources,
++                     size_t sinkCount, const audio_port_config* sinks);
++    void releasePatch(audio_patch_handle_t patch);
++
++  private:
++    struct Output {
++        std::weak_ptr<SpeakerRoute> route;
++        audio_patch_handle_t patch = AUDIO_PATCH_HANDLE_NONE;
++    };
++
++    std::mutex mMutex;
++    std::unordered_map<audio_io_handle_t, Output> mOutputs;
++};
++
++class SpeakerDolby {
++  public:
++    SpeakerDolby() = default;
++    ~SpeakerDolby();
++    SpeakerDolby(const SpeakerDolby&) = delete;
++    SpeakerDolby& operator=(const SpeakerDolby&) = delete;
++
++    bool configure(audio_format_t format, audio_channel_mask_t channels, uint32_t sampleRate);
++    void process(void* data, size_t bytes, bool routedToSpeaker);
++
++  private:
++    static constexpr size_t kBlockFrames = 240;
++    bool applyProfile(int profile);
++    void processBlock(uint8_t* data, size_t frames, bool fadingOut);
++
++    audio_effect_library_t* mLibrary = nullptr;
++    effect_handle_t mEffect = nullptr;
++    audio_format_t mFormat = AUDIO_FORMAT_INVALID;
++    uint32_t mSampleRate = 0;
++    uint32_t mAudioChannels = 0;
++    size_t mFrameSize = 0;
++    uint32_t mFadeFrames = 0;
++    uint32_t mWetFrames = 0;
++    float mGain = 1.0f;
++    int mActiveProfile = -1;
++    int mRequestedProfile = -1;
++    std::array<float, 2 * kBlockFrames> mDry{};
++    std::array<float, 2 * kBlockFrames> mWet{};
++};
++
++}  // namespace gts9u::audio
 diff --git a/configs/displayconfig/display_id_4630946478520245635.xml b/configs/displayconfig/display_id_4630946478520245635.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..073f1a3393899ab7bf952bef8f1b06e00e789425
+index 0000000..073f1a3
 --- /dev/null
 +++ b/configs/displayconfig/display_id_4630946478520245635.xml
 @@ -0,0 +1,373 @@
@@ -443,7 +884,7 @@ index 0000000000000000000000000000000000000000..073f1a3393899ab7bf952bef8f1b06e0
 +</displayConfiguration>
 diff --git a/configs/floating_feature.xml b/configs/floating_feature.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..e7bb548c4d7bb38c8dd04a92ae2e3bf3f827da1c
+index 0000000..e7bb548
 --- /dev/null
 +++ b/configs/floating_feature.xml
 @@ -0,0 +1,5 @@
@@ -454,7 +895,7 @@ index 0000000000000000000000000000000000000000..e7bb548c4d7bb38c8dd04a92ae2e3bf3
 +</SecFloatingFeatureSet>
 diff --git a/configs/ssg/sec_channel.rc b/configs/ssg/sec_channel.rc
 new file mode 100644
-index 0000000000000000000000000000000000000000..4e1e951a86db77ac220106ec86b4fa257d45f17e
+index 0000000..4e1e951
 --- /dev/null
 +++ b/configs/ssg/sec_channel.rc
 @@ -0,0 +1,3 @@
@@ -462,7 +903,7 @@ index 0000000000000000000000000000000000000000..4e1e951a86db77ac220106ec86b4fa25
 +tz_enable=1
 +modem_enable=0
 diff --git a/device.mk b/device.mk
-index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50da71dd91 100644
+index 102e8d9..a062fec 100644
 --- a/device.mk
 +++ b/device.mk
 @@ -24,6 +24,10 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
@@ -476,7 +917,7 @@ index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50
  PRODUCT_PACKAGES += \
      init.gts9uwifi.rc
  
-@@ -34,7 +38,26 @@ PRODUCT_SOONG_NAMESPACES += \
+@@ -34,7 +38,32 @@ PRODUCT_SOONG_NAMESPACES += \
  # Overlay
  DEVICE_PACKAGE_OVERLAYS += \
      $(LOCAL_PATH)/overlay \
@@ -501,10 +942,16 @@ index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50
 +
 +# S Pen firmware lookup during I2C probe.
 +PRODUCT_PACKAGES += spen_firmware_early_symlink
++
++# Signed cfg80211 regulatory database from the AOSP wireless-regdb project.
++# Its signer is included in this kernel's built-in regulatory certificates.
++PRODUCT_COPY_FILES += \
++    external/wireless-regdb/regulatory.db:$(TARGET_COPY_OUT_VENDOR)/firmware/regulatory.db \
++    external/wireless-regdb/regulatory.db.p7s:$(TARGET_COPY_OUT_VENDOR)/firmware/regulatory.db.p7s
  
  # WiFi firmware symlinks
  PRODUCT_PACKAGES += \
-@@ -54,9 +77,6 @@ PRODUCT_PACKAGES += \
+@@ -54,9 +83,6 @@ PRODUCT_PACKAGES += \
  
  # SamsungParts
  PRODUCT_PACKAGES += \
@@ -514,7 +961,7 @@ index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50
     SPenActions \
     vendor.samsung.hardware.spen-service
  
-@@ -67,21 +87,14 @@ PRODUCT_COPY_FILES += \
+@@ -67,30 +93,35 @@ PRODUCT_COPY_FILES += \
  PRODUCT_COPY_FILES += \
      $(LOCAL_PATH)/configs/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
  
@@ -541,18 +988,30 @@ index 102e8d97f9a73097179f75c5c50dc948ca5e9815..dd76d314efa2558e3bc848f9ff5bde50
  $(call soong_config_set, qtidisplay, udfps, true)
  $(call soong_config_set,surfaceflinger,udfps_lib,//hardware/samsung:libudfps_extension.samsung)
  $(call soong_config_set,samsungTouchVars,enableGloveMode,false)
-@@ -94,3 +107,9 @@ $(call inherit-product, device/samsung/sm8550-common/common.mk)
+ $(call soong_config_set,samsungTouchVars,enableHighTouchPollingRate,false)
+ $(call soong_config_set,samsungTouchVars,enableStylusMode,false)
++# Process the tablet speaker's PCM output in the vendor audio HAL.
++$(call soong_config_set_bool,android_hardware_audio,gts9u_speaker_dolby,true)
++SM8550_AUDIO_SPEAKER_ROUTE := device/samsung/gts9uwifi/audio/audio_policy_speaker_route.xml
++
+ # Inherit from the common OEM chipset makefile.
+ $(call inherit-product, device/samsung/sm8550-common/common.mk)
+ 
+ # Inherit from the proprietary files makefile.
  $(call inherit-product, vendor/samsung/gts9uwifi/gts9uwifi-vendor.mk)
  
- $(call inherit-product, hardware/dolby/dolby.mk)
-+PRODUCT_PACKAGES += SamsungDAP
+-$(call inherit-product, hardware/dolby/dolby.mk)
++# Samsung Dolby speaker control and its audio app overrides.
++PRODUCT_PACKAGES += \
++    SamsungDAP \
++    Gts9uAudioPackageOverrides
 +
 +# Samsung Wi-Fi MAC provisioning before CNSS cold calibration.
 +PRODUCT_PACKAGES += \
 +    macloader \
 +    init.gts9uwifi.wifi.rc
 diff --git a/extract-files.py b/extract-files.py
-index b72fe67445ca529d7374ab40110f698ba98fb3cc..779aa2e69f812626177c76db67e01d328ab3c143 100755
+index b72fe67..779aa2e 100755
 --- a/extract-files.py
 +++ b/extract-files.py
 @@ -4,16 +4,27 @@
@@ -691,7 +1150,7 @@ index b72fe67445ca529d7374ab40110f698ba98fb3cc..779aa2e69f812626177c76db67e01d32
  )
 diff --git a/init/fstab.qcom b/init/fstab.qcom
 new file mode 100644
-index 0000000000000000000000000000000000000000..7e80a0250fd84c1685ae5fd591086f7c96c85446
+index 0000000..7e80a02
 --- /dev/null
 +++ b/init/fstab.qcom
 @@ -0,0 +1,70 @@
@@ -767,7 +1226,7 @@ index 0000000000000000000000000000000000000000..7e80a0250fd84c1685ae5fd591086f7c
 +/dev/block/platform/soc/1d84000.ufshc/by-name/optics    /optics                ext4    ro,barrier=1                                         avb,nofail,first_stage_mount
 diff --git a/libshims/face_preview/Android.bp b/libshims/face_preview/Android.bp
 new file mode 100644
-index 0000000000000000000000000000000000000000..95659fc999e9b6399a8493a30c787b7d561ec68e
+index 0000000..95659fc
 --- /dev/null
 +++ b/libshims/face_preview/Android.bp
 @@ -0,0 +1,20 @@
@@ -793,7 +1252,7 @@ index 0000000000000000000000000000000000000000..95659fc999e9b6399a8493a30c787b7d
 +}
 diff --git a/libshims/face_preview/FacePreview.cpp b/libshims/face_preview/FacePreview.cpp
 new file mode 100644
-index 0000000000000000000000000000000000000000..2af57965a8824ff54d37d1c3b7b80bd231ee613e
+index 0000000..2af5796
 --- /dev/null
 +++ b/libshims/face_preview/FacePreview.cpp
 @@ -0,0 +1,121 @@
@@ -919,7 +1378,7 @@ index 0000000000000000000000000000000000000000..2af57965a8824ff54d37d1c3b7b80bd2
 +    return 0;
 +}
 diff --git a/lineage_gts9uwifi.mk b/lineage_gts9uwifi.mk
-index 59aba3d932d28d21197cd4d11c5b4d90d24c7e85..122f60631c772b58f95ca2b1cda017c78aa4afe1 100644
+index 59aba3d..122f606 100644
 --- a/lineage_gts9uwifi.mk
 +++ b/lineage_gts9uwifi.mk
 @@ -4,6 +4,10 @@
@@ -965,7 +1424,7 @@ index 59aba3d932d28d21197cd4d11c5b4d90d24c7e85..122f60631c772b58f95ca2b1cda017c7
 +PRODUCT_SYSTEM_SERVER_COMPILER_FILTER := speed
 diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..66972effc735be95649c675f85949804ebb7d7c8
+index 0000000..66972ef
 --- /dev/null
 +++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_orientation.xml
 @@ -0,0 +1,6 @@
@@ -977,7 +1436,7 @@ index 0000000000000000000000000000000000000000..66972effc735be95649c675f85949804
 +</resources>
 diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..da3e0b78c4bdc22f18c3d48db1f5b56b7a1e3b6a
+index 0000000..da3e0b7
 --- /dev/null
 +++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_pose.xml
 @@ -0,0 +1,4 @@
@@ -987,7 +1446,7 @@ index 0000000000000000000000000000000000000000..da3e0b78c4bdc22f18c3d48db1f5b56b
 +</resources>
 diff --git a/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..909b31b77954e86df47a59e56655f28eaf98de06
+index 0000000..909b31b
 --- /dev/null
 +++ b/overlay-face-orientation/packages/apps/Settings/res/values/face_enroll_preview.xml
 @@ -0,0 +1,6 @@
@@ -998,7 +1457,7 @@ index 0000000000000000000000000000000000000000..909b31b77954e86df47a59e56655f28e
 +    <integer name="face_preview_height">480</integer>
 +</resources>
 diff --git a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
-index 50e49d221081f2ba1340a2a1ad9f80ab596c5d74..1c213222e643d375f1087ec58f70e79246abd0da 100644
+index 50e49d2..1c21322 100644
 --- a/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
 +++ b/overlay-lineage/lineage-sdk/lineage/res/res/values/config.xml
 @@ -20,4 +20,13 @@
@@ -1017,7 +1476,7 @@ index 50e49d221081f2ba1340a2a1ad9f80ab596c5d74..1c213222e643d375f1087ec58f70e792
  </resources>
 \ No newline at end of file
 diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
-index 90e5a62edc941344b1ce3f1f5ca668e104067679..faa1a07d0dbc02678f9b4d44409ad651d99ff327 100644
+index 90e5a62..faa1a07 100644
 --- a/overlay/frameworks/base/core/res/res/values/config.xml
 +++ b/overlay/frameworks/base/core/res/res/values/config.xml
 @@ -24,6 +24,12 @@
@@ -1987,7 +2446,7 @@ index 90e5a62edc941344b1ce3f1f5ca668e104067679..faa1a07d0dbc02678f9b4d44409ad651
 +    <integer name="config_faceAuthVendorSensorOrientation">270</integer>
  </resources>
 diff --git a/overlay/frameworks/base/core/res/res/xml/power_profile.xml b/overlay/frameworks/base/core/res/res/xml/power_profile.xml
-index 415bf325a05ae6e857a89d60e91cc136bfffdbbd..e5ce2a1cca5793824c3a30038f589a2bd3ac2885 100644
+index 415bf32..e5ce2a1 100644
 --- a/overlay/frameworks/base/core/res/res/xml/power_profile.xml
 +++ b/overlay/frameworks/base/core/res/res/xml/power_profile.xml
 @@ -159,8 +159,8 @@
@@ -2003,7 +2462,7 @@ index 415bf325a05ae6e857a89d60e91cc136bfffdbbd..e5ce2a1cca5793824c3a30038f589a2b
      <item name="bluetooth.controller.tx">33</item>
 diff --git a/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml b/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..5db3a4ac9acb41381b9f61f9ccf9cab16b037a2e
+index 0000000..5db3a4a
 --- /dev/null
 +++ b/overlay/frameworks/base/libs/WindowManager/Shell/res/values/dimens.xml
 @@ -0,0 +1,9 @@
@@ -2017,7 +2476,7 @@ index 0000000000000000000000000000000000000000..5db3a4ac9acb41381b9f61f9ccf9cab1
 +    <dimen name="desktop_mode_fullscreen_decor_caption_horizontal_padding_touched">33dp</dimen>
 +</resources>
 diff --git a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml b/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
-index cf86bc21d5d61c110b3edb4adf227092a3d4802a..dbfc25d02e1612dd43c7035807d4f6a0b01f5e31 100644
+index cf86bc2..dbfc25d 100644
 --- a/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
 +++ b/overlay/frameworks/base/packages/SettingsProvider/res/values/defaults.xml
 @@ -18,7 +18,7 @@
@@ -2030,7 +2489,7 @@ index cf86bc21d5d61c110b3edb4adf227092a3d4802a..dbfc25d02e1612dd43c7035807d4f6a0
      <!-- Enable auto rotation switching by default -->
      <bool name="def_accelerometer_rotation">true</bool>
 diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
-index 4fd2484ebf8761a1cc2b6a0e7104ea24e5385a21..8f57fb201a5f391ecb6bb47c8b3ec80aabc67c2e 100644
+index 4fd2484..8f57fb2 100644
 --- a/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
 +++ b/overlay/frameworks/base/packages/SystemUI/res/values/config.xml
 @@ -6,7 +6,15 @@
@@ -2052,7 +2511,7 @@ index 4fd2484ebf8761a1cc2b6a0e7104ea24e5385a21..8f57fb201a5f391ecb6bb47c8b3ec80a
  </resources>
 diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..71b3ec8c63159534e7c3744c68e474dca5ceb8ef
+index 0000000..71b3ec8
 --- /dev/null
 +++ b/overlay/frameworks/base/packages/SystemUI/res/values/config_msdl_haptics.xml
 @@ -0,0 +1,5 @@
@@ -2063,7 +2522,7 @@ index 0000000000000000000000000000000000000000..71b3ec8c63159534e7c3744c68e474dc
 +</resources>
 diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml b/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..a88b881c5cdccdd2d61e13669835c2b2cf960a8d
+index 0000000..a88b881
 --- /dev/null
 +++ b/overlay/frameworks/base/packages/SystemUI/res/values/config_udfps_ghbm.xml
 @@ -0,0 +1,558 @@
@@ -2626,7 +3085,7 @@ index 0000000000000000000000000000000000000000..a88b881c5cdccdd2d61e13669835c2b2
 +    </string-array>
 +</resources>
 diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
-index 6069cd95b4163cbcce65eb7f915ece46b3b06fdb..363abf3aad968e812504cf1128945c03dd8928f1 100644
+index 6069cd9..363abf3 100644
 --- a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
 +++ b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
 @@ -9,6 +9,9 @@
@@ -2641,20 +3100,18 @@ index 6069cd95b4163cbcce65eb7f915ece46b3b06fdb..363abf3aad968e812504cf1128945c03
  
 diff --git a/overlay/hardware/samsung/packages/dap/res/values/config.xml b/overlay/hardware/samsung/packages/dap/res/values/config.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..0dfc8ead3c9a60f86d297f392194591c78fb0c2a
+index 0000000..c37fdde
 --- /dev/null
 +++ b/overlay/hardware/samsung/packages/dap/res/values/config.xml
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,6 @@
 +<?xml version="1.0" encoding="utf-8"?>
 +<!-- SPDX-License-Identifier: Apache-2.0 -->
 +<resources>
-+    <!-- CYG1 speaker STREAM_MUSIC reference at index 14, -3.5 dB in Q24. -->
-+    <integer name="config_dolbySpeakerAuxGainQ24">11212950</integer>
-+    <!-- Keep stream attenuation after Dolby on built-in speakers. -->
-+    <bool name="config_dolbySpeakerPostVolume">true</bool>
++    <!-- The switch and profile control the built-in speaker at the HAL output. -->
++    <bool name="config_dolbySpeakerHal">true</bool>
 +</resources>
 diff --git a/overlay/packages/apps/Settings/res/values/lineage_config.xml b/overlay/packages/apps/Settings/res/values/lineage_config.xml
-index 33a42af55e4e527c475f0fb9572700d2f15250ef..ef2db90e85459b9ca05c2d596d0c317f530567aa 100644
+index 33a42af..ef2db90 100644
 --- a/overlay/packages/apps/Settings/res/values/lineage_config.xml
 +++ b/overlay/packages/apps/Settings/res/values/lineage_config.xml
 @@ -22,4 +22,11 @@
@@ -2671,7 +3128,7 @@ index 33a42af55e4e527c475f0fb9572700d2f15250ef..ef2db90e85459b9ca05c2d596d0c317f
  </resources>
 diff --git a/overlay/packages/services/Mtp/res/values/config.xml b/overlay/packages/services/Mtp/res/values/config.xml
 new file mode 100644
-index 0000000000000000000000000000000000000000..880f1b10f820ad13fe8fc2cd46b05443c758a7a7
+index 0000000..880f1b1
 --- /dev/null
 +++ b/overlay/packages/services/Mtp/res/values/config.xml
 @@ -0,0 +1,5 @@
@@ -2681,7 +3138,7 @@ index 0000000000000000000000000000000000000000..880f1b10f820ad13fe8fc2cd46b05443
 +    <string name="config_mtpDeviceModel" translatable="false">Galaxy Tab S9 Ultra</string>
 +</resources>
 diff --git a/proprietary-files.txt b/proprietary-files.txt
-index 7779757cdcccf1173e43fea32926227a276d73c1..0c74b40f8ef64eefb0ce41a8639497f1abf4bebe 100644
+index 7779757..0c74b40 100644
 --- a/proprietary-files.txt
 +++ b/proprietary-files.txt
 @@ -15,14 +15,12 @@ vendor/lib64/librecordalive.so
@@ -2728,7 +3185,7 @@ index 7779757cdcccf1173e43fea32926227a276d73c1..0c74b40f8ef64eefb0ce41a8639497f1
 +# Time service shutdown persistence client
 +vendor/bin/time_client
 diff --git a/rootdir/Android.bp b/rootdir/Android.bp
-index 437aa4af37925860c9d4e5b88cd55320eddf0872..f02ee0505515d7281837652b83dcd17a0619375a 100644
+index 437aa4a..f02ee05 100644
 --- a/rootdir/Android.bp
 +++ b/rootdir/Android.bp
 @@ -11,3 +11,10 @@ prebuilt_etc {
@@ -2743,7 +3200,7 @@ index 437aa4af37925860c9d4e5b88cd55320eddf0872..f02ee0505515d7281837652b83dcd17a
 +    vendor: true,
 +}
 diff --git a/rootdir/etc/init.gts9uwifi.rc b/rootdir/etc/init.gts9uwifi.rc
-index 749d3afc5f7df18689b7e20b205b45259075e264..3f8cab2e212a95dc640676a90894bbd7147eb71b 100644
+index 749d3af..3f8cab2 100644
 --- a/rootdir/etc/init.gts9uwifi.rc
 +++ b/rootdir/etc/init.gts9uwifi.rc
 @@ -67,7 +67,8 @@ on boot
@@ -2767,7 +3224,7 @@ index 749d3afc5f7df18689b7e20b205b45259075e264..3f8cab2e212a95dc640676a90894bbd7
      chown system system /sys/class/sec/tsp/cmd
 diff --git a/rootdir/etc/init.gts9uwifi.wifi.rc b/rootdir/etc/init.gts9uwifi.wifi.rc
 new file mode 100644
-index 0000000000000000000000000000000000000000..b20b786e07c1d29ff3360b49abb0be55673cd58b
+index 0000000..b20b786
 --- /dev/null
 +++ b/rootdir/etc/init.gts9uwifi.wifi.rc
 @@ -0,0 +1,36 @@
@@ -2809,24 +3266,26 @@ index 0000000000000000000000000000000000000000..b20b786e07c1d29ff3360b49abb0be55
 +    oneshot
 diff --git a/sepolicy/vendor/file_contexts b/sepolicy/vendor/file_contexts
 new file mode 100644
-index 0000000000000000000000000000000000000000..341369f30f2137774bff03cc244b0bb9a6ce3c5b
+index 0000000..3572595
 --- /dev/null
 +++ b/sepolicy/vendor/file_contexts
-@@ -0,0 +1,3 @@
+@@ -0,0 +1,6 @@
 +/vendor/bin/time_client u:object_r:vendor_time_client_exec:s0
 +
 +/vendor/bin/hw/vendor\.samsung\.hardware\.biometrics\.face-service u:object_r:hal_face_default_exec:s0
++
++# Grip wakeup sources: the I2C bus number depends on probe order.
++/sys/devices/platform/soc/8c0000\.qcom,qupv3_2_geni_se/88c000\.i2c/i2c-[0-9]+/[0-9]+-0020/wakeup(/.*)? u:object_r:sysfs_wakeup:s0
 diff --git a/sepolicy/vendor/genfs_contexts b/sepolicy/vendor/genfs_contexts
 new file mode 100644
-index 0000000000000000000000000000000000000000..69795af85554814b8c3235c95673b4d085fcbf26
+index 0000000..637be17
 --- /dev/null
 +++ b/sepolicy/vendor/genfs_contexts
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,20 @@
 +# SPDX-License-Identifier: Apache-2.0
 +
-+# Tablet-specific charging and grip wakeup sources. Match the upstream
++# Tablet-specific charging wakeup sources. Match the upstream
 +# sysfs_wakeup labeling used by system_suspend, keeping battery controls separate.
-+genfscon sysfs "/devices/platform/soc/8c0000.qcom,qupv3_2_geni_se/88c000.i2c/i2c-66/66-0020/wakeup" u:object_r:sysfs_wakeup:s0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/98c000.i2c/i2c-56/56-0063/wakeup" u:object_r:sysfs_wakeup:s0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-charger/wakeup" u:object_r:sysfs_wakeup:s0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-otg/wakeup" u:object_r:sysfs_wakeup:s0
@@ -2835,12 +3294,20 @@ index 0000000000000000000000000000000000000000..69795af85554814b8c3235c95673b4d0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-fuelgauge/wakeup" u:object_r:sysfs_wakeup:s0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/wakeup" u:object_r:sysfs_wakeup:s0
 +genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a4000.i2c/i2c-59/59-0033/wakeup" u:object_r:sysfs_wakeup:s0
++
++# Label the tablet's actual power-supply paths directly. More specific wakeup
++# labels below take precedence over the battery-control directory labels.
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/98c000.i2c/i2c-56/56-0063/power_supply/sm5440-charger" u:object_r:sysfs_battery:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/98c000.i2c/i2c-56/56-0063/power_supply/sm5440-charger/wakeup" u:object_r:sysfs_wakeup:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-charger" u:object_r:vendor_sysfs_battery:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-charger/power_supply/sm5714-otg" u:object_r:vendor_sysfs_battery:s0
++genfscon sysfs "/devices/platform/soc/9c0000.qcom,qupv3_i2c_geni_se/9a0000.i2c/i2c-58/58-0049/sm5714-fuelgauge/power_supply/sm5714-fuelgauge" u:object_r:vendor_sysfs_battery:s0
 diff --git a/sepolicy/vendor/hal_face_default.te b/sepolicy/vendor/hal_face_default.te
 new file mode 100644
-index 0000000000000000000000000000000000000000..f9712ed6b6ea19655f1155f95f0e999e690be609
+index 0000000..29ab8bf
 --- /dev/null
 +++ b/sepolicy/vendor/hal_face_default.te
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,18 @@
 +# Open the front camera through the vendor NDK camera client.
 +allow hal_face_default fwk_camera_service:service_manager find;
 +binder_call(hal_face_default, cameraserver)
@@ -2856,9 +3323,12 @@ index 0000000000000000000000000000000000000000..f9712ed6b6ea19655f1155f95f0e999e
 +allow hal_face_default tee_device:chr_file rw_file_perms;
 +allow hal_face_default vendor_dmabuf_qseecom_heap_device:chr_file rw_file_perms;
 +allow hal_face_default vendor_dmabuf_qseecom_ta_heap_device:chr_file rw_file_perms;
++
++# The vendor camera client reads the framework camera configuration properties.
++get_prop(hal_face_default, camera_config_prop)
 diff --git a/sepolicy/vendor/vendor_time_client.te b/sepolicy/vendor/vendor_time_client.te
 new file mode 100644
-index 0000000000000000000000000000000000000000..abe4c84551727465d86f9672589d087a9956456f
+index 0000000..abe4c84
 --- /dev/null
 +++ b/sepolicy/vendor/vendor_time_client.te
 @@ -0,0 +1,13 @@
@@ -2876,10 +3346,26 @@ index 0000000000000000000000000000000000000000..abe4c84551727465d86f9672589d087a
 +allow vendor_time_daemon vendor_time_client:dir search;
 +allow vendor_time_daemon vendor_time_client:file { open read };
 diff --git a/vendor.prop b/vendor.prop
-index 100d51ca5d646eb958e7de58014ceb850eee88e1..88b6aff2700d229c2249026769dd441d5f531b7c 100644
+index 100d51c..ee6aa99 100644
 --- a/vendor.prop
 +++ b/vendor.prop
-@@ -43,3 +43,11 @@ sys.brightness.disable_gamma_conversion=true
+@@ -1,6 +1,15 @@
+ # audio
+ ro.audio.monitorRotation=true
+ 
++# Use the Samsung speaker effect with the Android spatializer disabled.
++ro.audio.spatializer_enabled=false
++ro.audio.headtracking_enabled=false
++ro.audio.spatializer_transaural_enabled_default=false
++persist.vendor.audio.spatializer.speaker_enabled=false
++ro.vendor.dolby.dax.version=DAX3_3.7.0.8_r1
++vendor.audio.dolby.ds2.hardbypass=false
++vendor.audio.dolby.ds2.enabled=false
++
+ camera.disable_zsl_mode=1
+ vendor.camera.aux.packagelist=org.lineageos.aperture,co.aospa.sense
+ persist.vendor.camera.aux.packagelist=org.lineageos.aperture,co.aospa.sense
+@@ -43,3 +52,11 @@ sys.brightness.disable_gamma_conversion=true
  
  # Fingerprint
  ro.vendor.fingerprint.rectangular_sensor_location=833,2644,1016,2827

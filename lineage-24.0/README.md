@@ -1,7 +1,7 @@
 # Galaxy Tab S9 Ultra Wi-Fi — LineageOS 24
 
 本目录保存 SM-X910 / gts9uwifi 当前修改的固定版本清单及补丁。
-设备树、内核、Samsung hardware、Dolby 和 vendor 对应组织仓库的 `lineage-24.0` 分支。
+设备树、内核、Samsung hardware 和 vendor 对应组织仓库的 `lineage-24.0` 分支。
 Settings 和 frameworks/base 的修改已包含在各自组织仓库中，不需要打补丁。其余 10 个尚无独立仓库的上游项目，通过本目录补丁恢复。
 
 在新的空目录同步：
