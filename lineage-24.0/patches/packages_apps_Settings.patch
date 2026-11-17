@@ -776,19 +776,99 @@ index 0000000000000000000000000000000000000000..514c4e3f8ba03d2d7acc34b8dce100b9
 +    }
 +}
 diff --git a/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java b/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
-index 76bdd47ca25b546a8ec9d2b0468c7bda5f27bf19..b3e99aadf81d04322bdeb24193c4be53645c5c79 100644
+index 76bdd47ca25b546a8ec9d2b0468c7bda5f27bf19..a1bb77f7bdbee7b50f2a120cfe14f4c6ace0c952 100644
 --- a/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
 +++ b/src/com/android/settings/deviceinfo/BuildNumberPreferenceController.java
-@@ -82,7 +82,11 @@ public class BuildNumberPreferenceController extends BasePreferenceController im
+@@ -82,7 +82,7 @@ public class BuildNumberPreferenceController extends BasePreferenceController im
  
      @Override
      public CharSequence getSummary() {
 -        return BidiFormatter.getInstance().unicodeWrap(Build.DISPLAY);
++        return BidiFormatter.getInstance().unicodeWrap(BuildNumberUtils.getBuildNumber());
+     }
+ 
+     @Override
+diff --git a/src/com/android/settings/deviceinfo/BuildNumberUtils.java b/src/com/android/settings/deviceinfo/BuildNumberUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..15b5827ccce4228ee7ed9b21b1d0d1f2565c09d4
+--- /dev/null
++++ b/src/com/android/settings/deviceinfo/BuildNumberUtils.java
+@@ -0,0 +1,18 @@
++/* SPDX-License-Identifier: Apache-2.0 */
++package com.android.settings.deviceinfo;
++
++import android.os.Build;
++import android.text.TextUtils;
++
++/** Shared build label for About device and Android version, including signing tags. */
++public final class BuildNumberUtils {
++    private BuildNumberUtils() {}
++
++    public static String getBuildNumber() {
 +        String display = Build.DISPLAY;
 +        if (!TextUtils.isEmpty(Build.TAGS) && !display.endsWith(" " + Build.TAGS)) {
 +            display += " " + Build.TAGS;
 +        }
-+        return BidiFormatter.getInstance().unicodeWrap(display);
++        return display;
++    }
++}
+diff --git a/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt b/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
+index ae0efad05fe69ae23bda1b5c5ba6ef1fd76e013f..47621f79e1a184e96ec20d0f1ac1ff8ba3900ab9 100644
+--- a/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
++++ b/src/com/android/settings/deviceinfo/aboutphone/MyDeviceInfoApiFirstScreen.kt
+@@ -98,7 +98,7 @@ class MyDeviceInfoApiFirstScreen :
+         ) {
+             sensitivityLevel(SensitivityLevel.DO_NOT_EXPOSE)
+ 
+-            get { execute { Build.DISPLAY } }
++            get { execute { BuildNumberUtils.getBuildNumber() } }
+         }
+ 
+         preference(
+diff --git a/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreference.kt b/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreference.kt
+index a048a161111aebda33c9b74dd9aaba4500405b8b..29361f04c5a90915fe3c841ca31110f4dba7210f 100644
+--- a/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreference.kt
++++ b/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreference.kt
+@@ -17,7 +17,7 @@
+ package com.android.settings.deviceinfo.firmwareversion
+ 
+ import android.content.Context
+-import android.os.Build
++import com.android.settings.deviceinfo.BuildNumberUtils
+ import android.text.BidiFormatter
+ import android.view.View.LAYOUT_DIRECTION_RTL
+ import androidx.preference.Preference
+@@ -56,7 +56,7 @@ class SimpleBuildNumberPreference :
+ 
+     override fun getSummary(context: Context): CharSequence? {
+         val isRtl = context.resources.configuration.layoutDirection == LAYOUT_DIRECTION_RTL
+-        return BidiFormatter.getInstance(isRtl).unicodeWrap(Build.DISPLAY)
++        return BidiFormatter.getInstance(isRtl).unicodeWrap(BuildNumberUtils.getBuildNumber())
      }
  
+     override fun bind(preference: Preference, metadata: PreferenceMetadata) {
+diff --git a/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreferenceController.java b/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreferenceController.java
+index 11988f7002ecac30cee26d4297be4599a551fbff..acfd1ff2ef3686ec1f450179fbeb69d162f08485 100644
+--- a/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreferenceController.java
++++ b/src/com/android/settings/deviceinfo/firmwareversion/SimpleBuildNumberPreferenceController.java
+@@ -17,10 +17,10 @@
+ package com.android.settings.deviceinfo.firmwareversion;
+ 
+ import android.content.Context;
+-import android.os.Build;
+ import android.text.BidiFormatter;
+ 
+ import com.android.settings.core.BasePreferenceController;
++import com.android.settings.deviceinfo.BuildNumberUtils;
+ 
+ // LINT.IfChange
+ public class SimpleBuildNumberPreferenceController extends BasePreferenceController {
+@@ -37,7 +37,7 @@ public class SimpleBuildNumberPreferenceController extends BasePreferenceControl
+ 
      @Override
+     public CharSequence getSummary() {
+-        return BidiFormatter.getInstance().unicodeWrap(Build.DISPLAY);
++        return BidiFormatter.getInstance().unicodeWrap(BuildNumberUtils.getBuildNumber());
+     }
+ }
+ // LINT.ThenChange(SimpleBuildNumberPreference.kt)
