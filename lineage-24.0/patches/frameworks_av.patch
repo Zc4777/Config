@@ -1,0 +1,203 @@
+diff --git a/media/libnbaio/Android.bp b/media/libnbaio/Android.bp
+index 158900a..2022e5f 100644
+--- a/media/libnbaio/Android.bp
++++ b/media/libnbaio/Android.bp
+@@ -69,6 +69,7 @@ cc_library {
+     // static_libs: ["libsndfile"],
+ 
+     shared_libs: [
++        "libmedia_helper",
+         "libmediautils",
+     ],
+ 
+diff --git a/media/libnbaio/AudioStreamOutSink.cpp b/media/libnbaio/AudioStreamOutSink.cpp
+index 0ab5874..abfba2c 100644
+--- a/media/libnbaio/AudioStreamOutSink.cpp
++++ b/media/libnbaio/AudioStreamOutSink.cpp
+@@ -18,6 +18,7 @@
+ //#define LOG_NDEBUG 0
+ 
+ #include <utils/Log.h>
++#include <media/AudioParameter.h>
+ #include <audio_utils/clock.h>
+ #include <media/audiohal/StreamHalInterface.h>
+ #include <media/nbaio/AudioStreamOutSink.h>
+@@ -51,6 +52,15 @@ ssize_t AudioStreamOutSink::negotiate(const NBAIO_Format offers[], size_t numOff
+                 audio_channel_count_from_out_mask(config.channel_mask), config.format);
+         mFrameSize = Format_frameSize(mFormat);
+ 
++        String8 response;
++        if (mStream->getParameters(String8("gts9u_speaker_volume_reference"), &response) == OK) {
++            AudioParameter parameters(response);
++            int version = 0;
++            mHasSpeakerVolumeReference =
++                    parameters.getInt(String8("gts9u_speaker_volume_reference"), version) == OK
++                    && version == 1;
++        }
++
+         // update format for MEL computation
+         auto processor = mMelProcessor.load();
+         if (processor) {
+@@ -62,6 +72,16 @@ ssize_t AudioStreamOutSink::negotiate(const NBAIO_Format offers[], size_t numOff
+     return NBAIO_Sink::negotiate(offers, numOffers, counterOffers, numCounterOffers);
+ }
+ 
++void AudioStreamOutSink::setVolumeReference(float volume)
++{
++    if (!mHasSpeakerVolumeReference || volume == mVolumeReference) return;
++    AudioParameter parameters;
++    parameters.addFloat(String8("gts9u_speaker_mix_volume"), volume);
++    if (mStream->setParameters(parameters.toString()) == OK) {
++        mVolumeReference = volume;
++    }
++}
++
+ ssize_t AudioStreamOutSink::write(const void *buffer, size_t count)
+ {
+     if (!mNegotiated) {
+diff --git a/media/libnbaio/include/media/nbaio/AudioStreamOutSink.h b/media/libnbaio/include/media/nbaio/AudioStreamOutSink.h
+index 7b5aa06..7ae5112 100644
+--- a/media/libnbaio/include/media/nbaio/AudioStreamOutSink.h
++++ b/media/libnbaio/include/media/nbaio/AudioStreamOutSink.h
+@@ -45,6 +45,7 @@ public:
+     //virtual size_t underruns() const;
+ 
+     virtual ssize_t write(const void *buffer, size_t count);
++    void setVolumeReference(float volume) override;
+ 
+     virtual status_t getTimestamp(ExtendedTimestamp &timestamp);
+ 
+@@ -60,6 +61,8 @@ public:
+ 
+ private:
+     sp<StreamOutHalInterface> mStream;
++    bool mHasSpeakerVolumeReference = false;
++    float mVolumeReference = -1.0f;
+     size_t              mStreamBufferSizeBytes; // as reported by get_buffer_size()
+     mediautils::atomic_sp<audio_utils::MelProcessor> mMelProcessor;
+ };
+diff --git a/media/libnbaio/include_mono/media/nbaio/NBAIO.h b/media/libnbaio/include_mono/media/nbaio/NBAIO.h
+index f8ec38b..525ec70 100644
+--- a/media/libnbaio/include_mono/media/nbaio/NBAIO.h
++++ b/media/libnbaio/include_mono/media/nbaio/NBAIO.h
+@@ -222,6 +222,9 @@ public:
+     // as of this presentation count.  The timestamp parameter is undefined if error is returned.
+     virtual status_t getTimestamp(ExtendedTimestamp& /*timestamp*/) { return INVALID_OPERATION; }
+ 
++    // Supply the common attenuation of the mix to a capable output processor.
++    virtual void setVolumeReference(float /* volume */) {}
++
+ protected:
+     NBAIO_Sink(const NBAIO_Format& format = Format_Invalid) : NBAIO_Port(format), mFramesWritten(0)
+             { }
+diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
+index 43c634e..852ebed 100644
+--- a/services/audioflinger/Threads.cpp
++++ b/services/audioflinger/Threads.cpp
+@@ -5459,6 +5459,9 @@ ssize_t MixerThread::threadLoop_write()
+             sq->end(false /*didModify*/);
+         }
+     }
++    if (mNormalSink == mOutputSink) {
++        mOutputSink->setVolumeReference(mOutputVolumeReference);
++    }
+     return PlaybackThread::threadLoop_write();
+ }
+ 
+@@ -5661,6 +5664,8 @@ PlaybackThread::mixer_state MixerThread::prepareTracks_l(
+         chain.clear();
+     }
+ 
++    mOutputVolumeReference = 0.0f;
++
+     // prepare a new state to push
+     FastMixerStateQueue *sq = NULL;
+     FastMixerState *state = NULL;
+@@ -6192,6 +6197,8 @@ PlaybackThread::mixer_state MixerThread::prepareTracks_l(
+                 track->setHasVolumeController(false);
+             }
+ 
++            mOutputVolumeReference = std::max(mOutputVolumeReference, std::max(vlf, vrf));
++
+             // XXX: these things DON'T need to be done each time
+             mAudioMixer->setBufferProvider(trackId, track->asExtendedAudioBufferProvider());
+             mAudioMixer->enable(trackId);
+@@ -6395,6 +6402,11 @@ PlaybackThread::mixer_state MixerThread::prepareTracks_l(
+         }
+     }
+ 
++    if (state != nullptr && state->mNormalVolumeReference != mOutputVolumeReference) {
++        state->mNormalVolumeReference = mOutputVolumeReference;
++        didModify = true;
++    }
++
+     // Push the new FastMixer state if necessary
+     [[maybe_unused]] bool pauseAudioWatchdog = false;
+     if (didModify) {
+diff --git a/services/audioflinger/Threads.h b/services/audioflinger/Threads.h
+index a60c886..47c5f00 100644
+--- a/services/audioflinger/Threads.h
++++ b/services/audioflinger/Threads.h
+@@ -1745,6 +1745,7 @@ protected:
+             final REQUIRES(mutex(), ThreadBase_ThreadLoop);
+ 
+                 AudioMixer* mAudioMixer;    // normal mixer
++                float mOutputVolumeReference = 1.0f;
+ 
+             // Support low latency mode by default as unless explicitly indicated by the audio HAL
+             // we assume the audio path is compatible with the head tracking latency requirements
+diff --git a/services/audioflinger/fastpath/FastMixer.cpp b/services/audioflinger/fastpath/FastMixer.cpp
+index 47085b5..9e7c682 100644
+--- a/services/audioflinger/fastpath/FastMixer.cpp
++++ b/services/audioflinger/fastpath/FastMixer.cpp
+@@ -327,6 +327,7 @@ void FastMixer::onWork()
+     }
+     const FastMixerState::Command command = mCommand;
+     const size_t frameCount = current->mFrameCount;
++    float volumeReference = 0.0f;
+ 
+     if ((command & FastMixerState::MIX) && (mMixer != nullptr) && mIsWarm) {
+         ALOG_ASSERT(mMixerBuffer != nullptr);
+@@ -361,10 +362,12 @@ void FastMixer::onWork()
+             fastTrack->mBufferProvider->onTimestamp(perTrackTimestamp);
+ 
+             const int name = i;
++            float trackVolumeReference = current->mNormalVolumeReference;
+             if (fastTrack->mVolumeProvider != nullptr) {
+                 const gain_minifloat_packed_t vlr = fastTrack->mVolumeProvider->getVolumeLR();
+                 float vlf = float_from_gain(gain_minifloat_unpack_left(vlr));
+                 float vrf = float_from_gain(gain_minifloat_unpack_right(vlr));
++                trackVolumeReference = std::max(vlf, vrf);
+ 
+                 mMixer->setParameter(name, AudioMixer::RAMP_VOLUME, AudioMixer::VOLUME0, &vlf);
+                 mMixer->setParameter(name, AudioMixer::RAMP_VOLUME, AudioMixer::VOLUME1, &vrf);
+@@ -397,6 +400,9 @@ void FastMixer::onWork()
+                 mMixer->enable(name);
+                 anyEnabledTracks = true;
+             }
++            if (framesReady > 0) {
++                volumeReference = std::max(volumeReference, trackVolumeReference);
++            }
+             ftDump->mUnderruns = underruns;
+             ftDump->mFramesReady = framesReady;
+             ftDump->mFramesWritten = trackFramesWritten;
+@@ -452,6 +458,7 @@ void FastMixer::onWork()
+         //       but this code should be modified to handle both non-blocking and blocking sinks
+         dumpState->mWriteSequence++;
+         ATRACE_BEGIN("write");
++        mOutputSink->setVolumeReference(volumeReference);
+         const ssize_t framesWritten = mOutputSink->write(buffer, frameCount);
+         ATRACE_END();
+         dumpState->mWriteSequence++;
+diff --git a/services/audioflinger/fastpath/FastMixerState.h b/services/audioflinger/fastpath/FastMixerState.h
+index e9b5de7..7485ee1 100644
+--- a/services/audioflinger/fastpath/FastMixerState.h
++++ b/services/audioflinger/fastpath/FastMixerState.h
+@@ -80,6 +80,7 @@ struct FastMixerState : FastThreadState {
+     unsigned    mTrackMask = 0;     // bit i is set if and only if mFastTracks[i] is active
+     NBAIO_Sink* mOutputSink = nullptr; // HAL output device, must already be negotiated
+     int         mOutputSinkGen = 0; // increment when mOutputSink is assigned
++    float       mNormalVolumeReference = 1.0f;
+     size_t      mFrameCount = 0;    // number of frames per fast mix buffer
+     audio_channel_mask_t mSinkChannelMask; // If not AUDIO_CHANNEL_NONE, specifies sink channel
+                                            // mask when it cannot be directly calculated from

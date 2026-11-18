@@ -80,7 +80,7 @@
   <project name="LineageOS/android_external_vim" path="external/vim" revision="f31199df8fca8148b61ae94bbfcb834021f5bdd9" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" />
   <project name="LineageOS/android_external_wpa_supplicant_8" path="external/wpa_supplicant_8" revision="4d70ee052a9f65038a24ec7ea2f2bb3f92b17277" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" groups="pdk" />
   <project name="LineageOS/android_external_zstd" path="external/zstd" revision="1bfdf8aef6bdec0e817c1f75aeaf382db22de668" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" />
-  <project name="LineageOS/android_frameworks_av" path="frameworks/av" revision="1c5914737a1a89d0c5b3e52e8289019eab3f8cbf" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" groups="pdk,sysui-studio" />
+  <project name="zc4777-gts9u/android_frameworks_av" remote="gts9u-user" path="frameworks/av" revision="2a9e42da5367f3f8474989a5631eee2763576d08" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" groups="pdk,sysui-studio" />
   <project name="zc4777-gts9u/android_frameworks_base" path="frameworks/base" revision="aa856249ffad4aa560584aa1cca03cba8dc59bad" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" groups="pdk-cw-fs,pdk-fs,sysui-studio" remote="gts9u-user" />
   <project name="LineageOS/android_frameworks_hardware_interfaces" path="frameworks/hardware/interfaces" revision="f80da5a738798ed94d061f79ebe78edf26391424" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" groups="pdk,sysui-studio" />
   <project name="LineageOS/android_frameworks_libs_systemui" path="frameworks/libs/systemui" revision="0e181d3d5dd8456ee158d9ac8725d9cd59fecd28" upstream="refs/heads/lineage-24.0" dest-branch="refs/heads/lineage-24.0" groups="pdk-cw-fs,pdk-fs,sysui-studio" />
@@ -1274,11 +1274,11 @@
   </project>
   <contactinfo bugurl="go/repo-bug" />
   <remote name="gts9u-user" fetch="https://github.com/" />
-  <project name="zc4777-gts9u/android_device_samsung_gts9uwifi" path="device/samsung/gts9uwifi" remote="gts9u-user" revision="2ab0648e02f1e6aac33f53443941cfce75c10317" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
-  <project name="zc4777-gts9u/android_device_samsung_sm8550-common" path="device/samsung/sm8550-common" remote="gts9u-user" revision="b166410316beb08f83d4e2eb6c7b584ee76e7cce" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
+  <project name="zc4777-gts9u/android_device_samsung_gts9uwifi" path="device/samsung/gts9uwifi" remote="gts9u-user" revision="2b25ad10cd7218e0032d521d16f1467f5b543012" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
+  <project name="zc4777-gts9u/android_device_samsung_sm8550-common" path="device/samsung/sm8550-common" remote="gts9u-user" revision="23e3140bdb4f7886bf36df60617c059aa2667a31" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
   <project name="zc4777-gts9u/android_kernel_samsung_sm8550" path="kernel/samsung/sm8550" remote="gts9u-user" revision="1c262f06cab007aef3f3addffdba90aaa3c5a6ab" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
   <project name="zc4777-gts9u/android_kernel_samsung_sm8550-devicetrees" path="kernel/samsung/sm8550-devicetrees" remote="gts9u-user" revision="738ed6250d2adad76a743b4bfb7855153287e17b" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
   <project name="zc4777-gts9u/android_kernel_samsung_sm8550-modules" path="kernel/samsung/sm8550-modules" remote="gts9u-user" revision="42b02a98ea0e0298fa0b3da96af042241fa9165a" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
   <project name="zc4777-gts9u/android_hardware_samsung" path="hardware/samsung" remote="gts9u-user" revision="6fabf00dc81dbcdd494d99d0f7d793b85925c92b" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
-  <project name="zc4777-gts9u/proprietary_vendor_samsung" path="vendor/samsung" remote="gts9u-user" revision="8d96722b6c6e1ebf3604b6820b8679d988285c68" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
+  <project name="zc4777-gts9u/proprietary_vendor_samsung" path="vendor/samsung" remote="gts9u-user" revision="de8ae8d60d3e53ac2c57fe306e53cbd484024da3" upstream="refs/heads/lineage-24.0" dest-branch="lineage-24.0" />
 </manifest>

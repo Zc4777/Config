@@ -5,19 +5,19 @@
     {
       "path": "device/samsung/gts9uwifi",
       "base": "1951735dbd014cf4f788bc2b4f388696022f69af",
-      "commit": "2ab0648e02f1e6aac33f53443941cfce75c10317",
+      "commit": "2b25ad10cd7218e0032d521d16f1467f5b543012",
       "repository": "zc4777-gts9u/android_device_samsung_gts9uwifi",
       "patch": "patches/device_samsung_gts9uwifi.patch",
-      "sha256": "68093a1a8965541ab6e58236ad5b6a96c0313e614565cc08e742fc98e59ba047",
+      "sha256": "10ddf9e293be759369a79d59734832ae6be7a45a37ba51c02b8fd3822c5f1050",
       "apply_after_sync": false
     },
     {
       "path": "device/samsung/sm8550-common",
       "base": "0a77ba7d7ea145852fc262a75e97185ee8ce63d3",
-      "commit": "b166410316beb08f83d4e2eb6c7b584ee76e7cce",
+      "commit": "23e3140bdb4f7886bf36df60617c059aa2667a31",
       "repository": "zc4777-gts9u/android_device_samsung_sm8550-common",
       "patch": "patches/device_samsung_sm8550-common.patch",
-      "sha256": "60f426a0f8e91929cfa22a61bb127018a7a252bfb074630c6d51e318c781bef2",
+      "sha256": "a6bcdca1c7da97742e36b71f8b55c8724e6c14ddb840d74993efa85a91a15af7",
       "apply_after_sync": false
     },
     {
@@ -28,6 +28,15 @@
       "patch": "patches/frameworks_base.patch",
       "sha256": "11c7703718dcb7edf216a1419652b0e082a63ac69791bba8baf746cfd1928093",
       "apply_after_sync": false
+    },
+    {
+      "path": "frameworks/av",
+      "base": "1c5914737a1a89d0c5b3e52e8289019eab3f8cbf",
+      "commit": "2a9e42da5367f3f8474989a5631eee2763576d08",
+      "repository": "zc4777-gts9u/android_frameworks_av",
+      "patch": "patches/frameworks_av.patch",
+      "apply_after_sync": false,
+      "sha256": "a6d11e992d8da2e72978bfffa9da956b2f3be8fcc8234c8bc1a4a4c4cd0e7cf0"
     },
     {
       "path": "frameworks/libs/systemui",
@@ -142,7 +151,7 @@
     {
       "path": "vendor/samsung",
       "repository": "zc4777-gts9u/proprietary_vendor_samsung",
-      "commit": "8d96722b6c6e1ebf3604b6820b8679d988285c68"
+      "commit": "de8ae8d60d3e53ac2c57fe306e53cbd484024da3"
     },
     {
       "path": "packages/apps/LineageParts",
